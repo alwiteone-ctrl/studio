@@ -1,0 +1,3456 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>استوديو مونتاج تقارير IFAO الاحترافي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @font-face {
+            font-family: 'NizarBBCKurdish';
+            src: local('Nizar BBC Kurdish Bold'), local('NizarBBCKurdish-Bold');
+            font-weight: bold;
+        }
+        :root {
+            --report-font: 'NizarBBCKurdish', 'Cairo', 'Tajawal', sans-serif;
+        }
+        body {
+            font-family: 'Cairo', 'Tajawal', sans-serif;
+            background-color: #020617;
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        .canvas-preview-wrapper {
+            aspect-ratio: 1080 / 1400;
+            max-height: 70vh;
+            margin: 0 auto;
+            box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.85), 0 0 25px rgba(37, 99, 235, 0.2);
+        }
+        canvas#montageCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            border-radius: 12px;
+            background: #090d16;
+            cursor: grab;
+        }
+        canvas#montageCanvas:active { cursor: grabbing; }
+
+        .word-chip {
+            transition: background-color 0.1s ease, color 0.1s ease, transform 0.08s ease;
+            user-select: none;
+        }
+        .word-chip:active { transform: scale(0.95); }
+        .word-chip.highlighted {
+            background-color: #facc15 !important;
+            color: #020617 !important;
+            border-color: #fef08a !important;
+            box-shadow: 0 0 10px rgba(250, 204, 21, 0.5);
+        }
+        .slide-card.active {
+            border-color: #3b82f6 !important;
+            background-color: rgba(30, 58, 138, 0.25) !important;
+        }
+        input[type="range"] { accent-color: #3b82f6; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-amber-400 selection:text-slate-950">
+
+    <!-- ==================== شاشة حماية المشتركين بكلمات سر متعددة ==================== -->
+    <div id="authLockScreen" class="fixed inset-0 z-[999] bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
+            <div class="absolute -top-20 -right-20 w-44 h-44 bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="text-center mb-5">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-800 mx-auto flex items-center justify-center shadow-lg mb-3 border border-blue-400/30">
+                    <span class="font-black text-xl tracking-wider text-white">IFAO</span>
+                </div>
+                <h1 class="text-xl font-black text-white">استوديو مونتاج تقارير IFAO</h1>
+                <p class="text-xs text-slate-400 mt-1">أدخل كلمة السر الخاصة باشتراكك لفتح الاستوديو</p>
+            </div>
+
+            <form id="subscriberLoginForm" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1.5">كلمة سر المشترك:</label>
+                    <div class="relative">
+                        <input id="subscriberPasswordInput" type="password" placeholder="أدخل كلمة السر هنا..." class="w-full bg-slate-950 border border-slate-700 focus:border-blue-500 rounded-xl px-4 py-3 text-sm text-white focus:outline-none">
+                        <button type="button" id="togglePassVisBtn" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="loginErrorMsg" class="hidden text-xs font-bold text-rose-400 bg-rose-950/50 border border-rose-800/50 rounded-xl px-3 py-2 text-center"></div>
+                <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 font-black text-sm text-white shadow-lg transition">
+                    <i class="fa-solid fa-unlock-keyhole ml-1"></i> دخول إلى الاستوديو
+                </button>
+            </form>
+
+            <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+                <span>كلمات سر تجريبية جاهزة: <code class="text-amber-400 font-mono">ifaostudio2026</code> / <code class="text-amber-400 font-mono">ifaosub123</code></span>
+                <button type="button" id="openAdminModalBtn" class="text-blue-400 hover:text-blue-300 font-bold">
+                    <i class="fa-solid fa-user-shield ml-1"></i>إدارة المشتركين
+                </button>
+            </div>
+
+            <!-- لوحة المدير لإدارة كلمات سر المشتركين -->
+            <div id="adminSubscribersBox" class="hidden mt-4 pt-4 border-t border-slate-800 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-black text-amber-400"><i class="fa-solid fa-key ml-1"></i>لوحة توليد كلمات سر المشتركين (المدير)</span>
+                    <span class="text-[10px] text-slate-500">كود المدير: admin2026</span>
+                </div>
+                <div id="adminUnlockRow" class="flex gap-1.5">
+                    <input id="adminMasterPinInput" type="password" placeholder="أدخل كود المدير (admin2026)" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+                    <button type="button" id="unlockAdminBtn" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-lg text-xs">فتح</button>
+                </div>
+                <div id="adminControlsContainer" class="hidden space-y-2.5">
+                    <div class="bg-slate-950/90 border border-amber-500/30 rounded-xl p-2.5 space-y-2">
+                        <p class="text-[10px] text-amber-300 font-bold">⚡ توليد كود اشتراك يعمل فوراً على موبايل أي مشترك (بدون إعادة رفع الموقع):</p>
+                        <div class="grid grid-cols-12 gap-1.5">
+                            <input id="newSubNameInput" type="text" placeholder="اسم المشترك (مثلاً: محمد)" class="col-span-5 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white">
+                            <select id="newSubDaysSelect" class="col-span-4 bg-slate-900 border border-slate-700 rounded-lg px-1.5 py-1.5 text-[11px] text-white font-bold">
+                                <option value="30">اشتراك شهر (30 يوم)</option>
+                                <option value="90">3 أشهر (90 يوم)</option>
+                                <option value="365">سنة كاملة</option>
+                                <option value="3650">مدى الحياة</option>
+                                <option value="7">تجريبي (7 أيام)</option>
+                            </select>
+                            <button type="button" id="generateSmartKeyBtn" class="col-span-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-lg text-[11px]">توليد الكود</button>
+                        </div>
+                        <div class="grid grid-cols-12 gap-1.5 items-center pt-1">
+                            <input id="newSubPassInput" type="text" placeholder="أو اكتب كلمة سر مخصصة..." class="col-span-9 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-amber-300 font-mono">
+                            <button type="button" id="addSubscriberBtn" class="col-span-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg py-1.5 text-xs">حفظ ونسخ</button>
+                        </div>
+                    </div>
+                    <div id="subscribersListContainer" class="max-h-36 overflow-y-auto space-y-1 pr-1"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== نافذة التأكيد المخصصة (بديل confirm/alert) ==================== -->
+    <div id="customConfirmModal" class="hidden fixed inset-0 z-[950] bg-slate-950/80 backdrop-blur-sm items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full p-5 shadow-2xl space-y-4">
+            <h3 id="confirmModalTitle" class="text-sm font-black text-white">تأكيد العملية</h3>
+            <p id="confirmModalMessage" class="text-xs text-slate-300 leading-relaxed"></p>
+            <div class="flex items-center justify-end gap-2 pt-2">
+                <button type="button" id="confirmModalCancelBtn" class="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300">إلغاء</button>
+                <button type="button" id="confirmModalOkBtn" class="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-xs font-black text-white">تأكيد التنفيذ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== إشعار Toast عائم ==================== -->
+    <div id="toastNotification" class="fixed bottom-5 left-5 z-[900] hidden bg-slate-900/95 border border-blue-500/40 text-white px-4 py-2.5 rounded-xl shadow-2xl text-xs font-bold items-center gap-2">
+        <i class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toastMessageText">تم التنفيذ بنجاح</span>
+    </div>
+
+    <!-- ==================== حاوية الفيديوهات المخفية للمزامنة السريعة ==================== -->
+    <div id="hiddenVideoPool" class="hidden" aria-hidden="true"></div>
+
+    <!-- ==================== الشريط العلوي + تبويبات المشاريع (حتى 3 مشاريع) ==================== -->
+    <header class="bg-slate-900/95 border-b border-slate-800 px-3 py-2 sticky top-0 z-40 backdrop-blur-md">
+        <div class="max-w-[1800px] mx-auto flex flex-wrap items-center justify-between gap-2">
+            <!-- الهوية -->
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-800 flex items-center justify-center font-black text-sm text-white shadow">IFAO</div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-sm font-black text-white">استوديو مونتاج تقارير IFAO</h1>
+                        <span id="activeSubscriberBadge" class="text-[10px] bg-emerald-950/80 border border-emerald-700/50 text-emerald-300 px-2 py-0.5 rounded-full font-bold">مشترك نشط</span>
+                    </div>
+                    <p class="text-[10px] text-slate-400">قياس البث المعتمد 1080×1400 • تمييز فوري • كابشن فيديو ذكي • قص فيديو وهندسة صوت</p>
+                </div>
+            </div>
+
+            <!-- شريط تبويبات المشاريع (حتى 3 مشاريع) -->
+            <div class="flex items-center gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                <div id="projectTabsContainer" class="flex items-center gap-1"></div>
+                <button type="button" id="newProjectTabBtn" class="px-2.5 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500/40 text-blue-300 text-xs font-bold transition" title="فتح مشروع جديد (حد أقصى 3 مشاريع)">
+                    <i class="fa-solid fa-plus ml-1"></i>مشروع جديد
+                </button>
+            </div>
+
+            <!-- أزرار التحكم العليا: إفراغ المشروع + تثبيت الخط + خروج -->
+            <div class="flex items-center gap-2">
+                <button type="button" id="clearCurrentProjectBtn" class="px-3 py-1.5 rounded-xl bg-rose-950/70 hover:bg-rose-900 border border-rose-700/60 text-rose-200 text-xs font-bold transition">
+                    <i class="fa-solid fa-trash-can ml-1"></i>إفراغ محتوى المشروع الحالي
+                </button>
+                <label class="cursor-pointer px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold transition">
+                    <i class="fa-solid fa-font ml-1 text-amber-400"></i>تثبيت خط Nizar (.ttf)
+                    <input id="customFontFileInput" type="file" accept=".ttf,.otf,.woff,.woff2" class="hidden">
+                </label>
+                <button type="button" id="logoutSubscriberBtn" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white text-xs" title="قفل الاستوديو">
+                    <i class="fa-solid fa-lock"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ==================== مساحة العمل الرئيسية ==================== -->
+    <main class="flex-1 max-w-[1800px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 p-3 lg:p-4">
+
+        <!-- ==================== العمود الأيمن: القالب + إدخال التقرير + الشرائح + الكابشن ==================== -->
+        <section class="lg:col-span-7 space-y-4">
+
+            <!-- 1. إدارة القالب الأساسي (مع قالب / بدون قالب بشكل فوري ومباشر) -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 shadow-lg">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-lg bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center text-xs font-black">1</span>
+                        <h2 class="text-xs font-black text-white">إدارة القالب الأساسي (تفعيل مباشر مع قالب أو بدون قالب)</h2>
+                    </div>
+                    <span id="templateStatusBadge" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30">بدون قالب حالياً</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                    <!-- أزرار التبديل المباشر -->
+                    <div class="sm:col-span-6 grid grid-cols-2 gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                        <button type="button" id="btnModeWithTemplate" class="py-2 px-3 rounded-lg text-xs font-black transition flex items-center justify-center gap-1.5 bg-blue-600 text-white">
+                            <i class="fa-solid fa-layer-group"></i> مع قالب
+                        </button>
+                        <button type="button" id="btnModeWithoutTemplate" class="py-2 px-3 rounded-lg text-xs font-black transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-white">
+                            <i class="fa-solid fa-ban"></i> بدون قالب
+                        </button>
+                    </div>
+
+                    <!-- رفع القالب من الجهاز أو حذفه -->
+                    <div class="sm:col-span-6 flex items-center gap-1.5">
+                        <label class="flex-1 cursor-pointer py-2 px-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 text-xs font-black text-center transition">
+                            <i class="fa-solid fa-cloud-arrow-up ml-1"></i>رفع القالب من جهازك (PNG/JPG)
+                            <input id="templateUploadInput" type="file" accept="image/*" class="hidden">
+                        </label>
+                        <button type="button" id="deleteUploadedTemplateBtn" class="py-2 px-3 rounded-xl bg-rose-950/60 hover:bg-rose-900 border border-rose-700/50 text-rose-300 text-xs font-bold" title="حذف القالب المرفوع">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- خيارات دمج القالب المرفوع -->
+                <div class="mt-2.5 pt-2.5 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                    <div class="flex items-center justify-between bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-800">
+                        <span class="text-slate-400">طريقة تركيب القالب:</span>
+                        <select id="templateBlendModeSelect" class="bg-slate-900 text-white font-bold rounded px-1.5 py-0.5 border border-slate-700 text-[11px]">
+                            <option value="underlay">الصورة/الفيديو في الأعلى فوق القالب</option>
+                            <option value="overlay">القالب الشفاف فوق الصورة/الفيديو</option>
+                            <option value="multiply">دمج أبيض شفاف تلقائي</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2 bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-800">
+                        <span class="text-slate-400 whitespace-nowrap">مساحة نافذة الميديا:</span>
+                        <input id="mediaViewportRatioSlider" type="range" min="45" max="85" value="62" class="w-full">
+                        <span id="mediaViewportRatioVal" class="text-blue-400 font-mono font-bold">62%</span>
+                    </div>
+                    <div class="flex items-center gap-2 bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-800">
+                        <span class="text-slate-400 whitespace-nowrap">نعومة دمج الحافة:</span>
+                        <input id="mediaFeatherSlider" type="range" min="0" max="260" value="140" class="w-full">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. سحب الصور/الفيديو ولصق نص التقرير الكامل -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 shadow-lg space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-lg bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center text-xs font-black">2</span>
+                        <h2 class="text-xs font-black text-white">إضافة الصور أو الفيديو (حتى 200MB) + نص التقرير الرئيسي</h2>
+                    </div>
+                    <label class="flex items-center gap-1.5 text-[11px] text-emerald-300 font-bold cursor-pointer">
+                        <input id="autoTranscribeOnUploadToggle" type="checkbox" checked class="rounded accent-emerald-500">
+                        <span>استخراج الكابشن تلقائياً فور رفع فيديو فيه كلام</span>
+                    </label>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                    <!-- منطقة رفع الصور أو الفيديوهات -->
+                    <div class="md:col-span-5 flex flex-col justify-between bg-slate-950 border-2 border-dashed border-slate-700 hover:border-blue-500 rounded-xl p-3 text-center transition">
+                        <div class="space-y-1.5 my-auto">
+                            <div class="w-10 h-10 rounded-full bg-blue-600/15 text-blue-400 flex items-center justify-center mx-auto">
+                                <i class="fa-solid fa-photo-film text-lg"></i>
+                            </div>
+                            <p class="text-xs font-black text-white">اسحب الصور أو الفيديوهات هنا</p>
+                            <p class="text-[10px] text-slate-400">يدعم صور متعددة وفيديوهات حتى <span class="text-amber-400 font-bold">200 ميغابايت</span></p>
+                        </div>
+                        <div class="mt-2 pt-2 border-t border-slate-800 flex flex-col gap-1.5">
+                            <label class="cursor-pointer w-full py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-black text-xs transition inline-block">
+                                <i class="fa-solid fa-plus ml-1"></i>إضافة صورة أو فيديو
+                                <input id="bulkMediaUploadInput" type="file" accept="image/*,video/*" multiple class="hidden">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- مربع نص التقرير الكامل للتوليد السريع -->
+                    <div class="md:col-span-7 flex flex-col gap-2">
+                        <div class="flex items-center justify-between">
+                            <label class="text-xs font-bold text-slate-300">الصق نص التقرير الإخباري هنا (كل سطر أو فقرة = شريحة):</label>
+                            <button type="button" id="highlightBulkSelectionBtn" class="px-2.5 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] transition">
+                                <i class="fa-solid fa-highlighter ml-1"></i>تمييز المحدد بالأصفر
+                            </button>
+                        </div>
+                        <textarea id="bulkReportTextarea" rows="4" placeholder="الصق نص التقرير هنا... يمكنك وضع أي كلمة بين نجمتين *كهذا* أو استخدام شريط التمييز الفوري بالأسفل لتلوينها بالأصفر." class="w-full bg-slate-950 border border-slate-700 focus:border-blue-500 rounded-xl p-2.5 text-xs text-white leading-relaxed focus:outline-none"></textarea>
+                        <button type="button" id="generateSlidesFromTextBtn" class="w-full py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-xs shadow transition">
+                            <i class="fa-solid fa-wand-magic-sparkles ml-1"></i>توزيع النص وتوليد شرائح التقرير فوراً
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. محرر نص التقرير للشريحة الحالية + شريط التمييز الفوري المباشر (Zero-Lag) -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 shadow-lg space-y-2.5">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-lg bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center text-xs font-black">3</span>
+                        <h2 class="text-xs font-black text-white">نص التقرير للشريحة الحالية (<span id="activeSlideNumBadge" class="text-amber-400">1</span>) + التمييز الفوري المباشر</h2>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" id="highlightActiveMainTextSelBtn" class="px-2.5 py-1 rounded-lg bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[11px] transition">
+                            <i class="fa-solid fa-highlighter ml-1"></i>تمييز النص المحدد بالماوس فوراً
+                        </button>
+                        <button type="button" id="clearActiveMainHighlightsBtn" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold">
+                            إلغاء التمييز
+                        </button>
+                    </div>
+                </div>
+
+                <textarea id="activeSlideMainTextInput" rows="2" placeholder="اكتب أو عدّل نص التقرير لهذه الشريحة..." class="w-full bg-slate-950 border border-slate-700 focus:border-amber-400 rounded-xl p-2.5 text-xs text-white leading-relaxed focus:outline-none"></textarea>
+
+                <!-- شريط الكلمات التفاعلي للتمييز بضغطة واحدة -->
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-[11px] font-bold text-amber-300"><i class="fa-solid fa-bolt ml-1"></i>شريط التمييز الفوري المباشر (اضغط على أي كلمة لتلوينها بالأصفر #FFD700 فوراً):</span>
+                        <div class="flex items-center gap-2 text-[11px]">
+                            <span class="text-slate-400">حجم الخط:</span>
+                            <input id="mainTextFontSizeSlider" type="range" min="28" max="68" value="44" class="w-20">
+                            <span id="mainTextFontSizeVal" class="text-amber-400 font-mono font-bold">44px</span>
+                            <span class="text-slate-400 mr-1">الموضع Y:</span>
+                            <input id="mainTextPosYSlider" type="range" min="650" max="1240" value="980" class="w-20">
+                        </div>
+                    </div>
+                    <div id="mainTextWordChipsContainer" class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1"></div>
+                </div>
+            </div>
+
+            <!-- 4. كابشن المتحدث الذكي (بالمنتصف بخلفية شفافة + تفريغ تلقائي + تعديل وتمييز) -->
+            <div class="bg-slate-900 border border-indigo-500/30 rounded-2xl p-3.5 shadow-lg space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-lg bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center text-xs font-black">4</span>
+                        <div>
+                            <h2 class="text-xs font-black text-white">كابشن المتحدث التلقائي (بالمنتصف بخلفية شفافة مع حرية التعديل)</h2>
+                            <p class="text-[10px] text-slate-400">يسجل ويكتب كلام الفيديو تلقائياً مع إمكانية التعديل اليدوي وتمييز كلمات الكابشن</p>
+                        </div>
+                    </div>
+
+                    <!-- تفعيل مع كابشن / بدون كابشن -->
+                    <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                        <button type="button" id="btnCaptionEnable" class="px-3 py-1 rounded-lg text-xs font-black transition bg-indigo-600 text-white">
+                            مع كابشن
+                        </button>
+                        <button type="button" id="btnCaptionDisable" class="px-3 py-1 rounded-lg text-xs font-black transition text-slate-400 hover:text-white">
+                            بدون كابشن
+                        </button>
+                <!-- شريط تمييز كلمات الكابشن والتحكم بموقعه (أعلى / منتصف / أسفل + تحريك حر) -->
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5 space-y-2">
+                    <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800/80">
+                        <span class="text-[11px] font-bold text-indigo-300"><i class="fa-solid fa-up-down-left-right ml-1"></i>موقع الكابشن على الشاشة (أو اسحبه مباشرة بالماوس داخل شاشة المعاينة):</span>
+                        <div class="flex flex-wrap items-center gap-1.5 text-[10px]">
+                            <button type="button" id="posCaptionTopBtn" class="px-2.5 py-1 bg-slate-900 hover:bg-indigo-600 text-slate-200 hover:text-white rounded-lg border border-slate-700 font-bold transition">
+                                <i class="fa-solid fa-arrow-up ml-1"></i>أعلى
+                            </button>
+                            <button type="button" id="centerCaptionBtn" class="px-2.5 py-1 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 hover:text-white rounded-lg border border-indigo-500/40 font-bold transition">
+                                <i class="fa-solid fa-arrows-to-dot ml-1"></i>بالمنتصف
+                            </button>
+                            <button type="button" id="posCaptionBottomBtn" class="px-2.5 py-1 bg-slate-900 hover:bg-indigo-600 text-slate-200 hover:text-white rounded-lg border border-slate-700 font-bold transition">
+                                <i class="fa-solid fa-arrow-down ml-1"></i>أسفل
+                            </button>
+                            <button type="button" id="nudgeCaptionUpBtn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-200 font-bold" title="رفع الكابشن قليلاً">
+                                <i class="fa-solid fa-chevron-up"></i>
+                            </button>
+                            <button type="button" id="nudgeCaptionDownBtn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-200 font-bold" title="إنزال الكابشن قليلاً">
+                                <i class="fa-solid fa-chevron-down"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-between gap-3 text-[10px]">
+                        <div class="flex items-center gap-1.5 flex-1 min-w-[160px]">
+                            <span class="text-slate-400 whitespace-nowrap">الارتفاع (أعلى/أسفل Y):</span>
+                            <input id="captionPosYSlider" type="range" min="110" max="1290" value="700" class="flex-1">
+                            <span id="captionPosYVal" class="text-indigo-400 font-mono font-bold w-10 text-left">700</span>
+                        </div>
+                        <div class="flex items-center gap-1.5 flex-1 min-w-[150px]">
+                            <span class="text-slate-400 whitespace-nowrap">الإزاحة الأفقية (X):</span>
+                            <input id="captionPosXSlider" type="range" min="-320" max="320" value="0" class="flex-1">
+                            <button type="button" id="resetCaptionPosXBtn" class="px-1.5 py-0.5 bg-slate-900 hover:bg-slate-800 rounded text-slate-400 border border-slate-800" title="توسيط أفقي">0</button>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-slate-400 whitespace-nowrap">شفافية الخلفية:</span>
+                            <input id="captionBgOpacitySlider" type="range" min="15" max="90" value="58" class="w-16">
+                            <span id="captionBgOpacityVal" class="text-indigo-400 font-mono">58%</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-1">
+                        <span class="block text-[11px] font-bold text-indigo-300 mb-1">اضغط على أي كلمة في الكابشن لتمييزها بالأصفر:</span>
+                        <div id="captionWordChipsContainer" class="flex flex-wrap gap-1.5"></div>
+                    </div>
+                </div>
+
+                <!-- مقاطع الكابشن الزمنية للفيديو (تظهر عند وجود فيديو) -->
+                <div id="captionSegmentsTimelineBox" class="hidden bg-slate-950 border border-slate-800 rounded-xl p-2.5 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold text-emerald-400"><i class="fa-solid fa-clock ml-1"></i>مقاطع كلام الفيديو الزمنية (تتبدل تلقائياً حسب ثواني الفيديو ويمكنك تعديلها):</span>
+                        <button type="button" id="addCaptionTimeSegmentBtn" class="px-2 py-0.5 rounded bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-bold">+ مقطع كابشن زمني</button>
+                    </div>
+                    <div id="captionSegmentsList" class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto"></div>
+                </div>
+            </div>
+
+            <!-- 5. قائمة شرائح التقرير (إضافة صورة أو فيديو + قص الفيديو + ترتيب) -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 shadow-lg space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="w-6 h-6 rounded-lg bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center text-xs font-black">5</span>
+                        <h2 class="text-xs font-black text-white">شرائح التقرير (<span id="slidesCountLabel">1</span> شريحة)</h2>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" id="addNewEmptySlideBtn" class="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs transition">
+                            <i class="fa-solid fa-plus ml-1"></i>+ شريحة (إضافة صورة أو فيديو)
+                        </button>
+                    </div>
+                </div>
+
+                <div id="slidesCardsContainer" class="space-y-2 max-h-[380px] overflow-y-auto pr-1"></div>
+            </div>
+
+        </section>
+
+        <!-- ==================== العمود الأيسر: شاشة المعاينة + قص الفيديو + لوحة الصوت المتقدمة + التصدير ==================== -->
+        <section class="lg:col-span-5 space-y-4">
+
+            <!-- شاشة المعاينة الحية (1080x1400) -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 shadow-lg space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <h2 class="text-xs font-black text-white">المعاينة الحية المباشرة (1080×1400)</h2>
+                    </div>
+                    <div class="flex items-center gap-2 text-[11px]">
+                        <span class="text-slate-400">زوم الصورة/الفيديو:</span>
+                        <input id="slideImageScale" type="range" min="0.5" max="2.5" step="0.02" value="1" class="w-20">
+                        <button type="button" id="resetSlideTransformBtn" class="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 text-[10px]">توسيط</button>
+                    </div>
+                </div>
+
+                <!-- Canvas -->
+                <div class="canvas-preview-wrapper relative">
+                    <canvas id="montageCanvas" width="1080" height="1400"></canvas>
+                    <div id="recordingOverlayBadge" class="hidden absolute top-3 right-3 bg-rose-600/90 text-white px-3 py-1 rounded-full text-xs font-black items-center gap-1.5 shadow-lg">
+                        <span class="w-2 h-2 rounded-full bg-white animate-ping"></span>
+                        <span>جاري تسجيل وتصدير التقرير...</span>
+                    </div>
+                </div>
+
+                <!-- شريط التحكم بالتشغيل والوقت -->
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5 space-y-2">
+                    <div class="flex items-center gap-2">
+                        <button type="button" id="playPauseBtn" class="w-9 h-9 rounded-xl bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow transition">
+                            <i id="playPauseIcon" class="fa-solid fa-play text-sm ml-0.5"></i>
+                        </button>
+                        <button type="button" id="restartPlaybackBtn" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center text-xs" title="من البداية">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                        <input id="timelineScrubber" type="range" min="0" max="10" step="0.05" value="0" class="flex-1">
+                        <span id="timecodeDisplay" class="text-[11px] font-mono font-bold text-amber-400 whitespace-nowrap">00:00.0 / 00:05.0</span>
+                    </div>
+                </div>
+
+                <!-- أداة قص الفيديو الاحترافية (تظهر تلقائياً عندما تكون الشريحة فيديو) -->
+                <div id="videoTrimmerPanel" class="hidden bg-slate-950 border border-amber-500/40 rounded-xl p-3 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-black text-amber-400"><i class="fa-solid fa-scissors ml-1"></i>قص وتحديد مقطع الفيديو للشريحة الحالية</span>
+                        <span id="videoTrimDurationSummary" class="text-[11px] font-mono text-emerald-400 font-bold">المقطع: 0.0s - 5.0s</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-[11px]">
+                        <div class="bg-slate-900 p-2 rounded-lg border border-slate-800 space-y-1">
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">بداية القص (ثانية):</span>
+                                <button type="button" id="setTrimStartNowBtn" class="text-blue-400 hover:underline text-[10px]">اللحظة الحالية</button>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <input id="videoTrimStartSlider" type="range" min="0" max="60" step="0.1" value="0" class="flex-1">
+                                <input id="videoTrimStartNum" type="number" min="0" step="0.1" value="0" class="w-14 bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-center font-mono text-white">
+                            </div>
+                        </div>
+                        <div class="bg-slate-900 p-2 rounded-lg border border-slate-800 space-y-1">
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">نهاية القص (ثانية):</span>
+                                <button type="button" id="setTrimEndNowBtn" class="text-blue-400 hover:underline text-[10px]">اللحظة الحالية</button>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <input id="videoTrimEndSlider" type="range" min="0.5" max="60" step="0.1" value="5" class="flex-1">
+                                <input id="videoTrimEndNum" type="number" min="0.5" step="0.1" value="5" class="w-14 bg-slate-950 border border-slate-700 rounded px-1 py-0.5 text-center font-mono text-white">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between gap-2 pt-1">
+                        <button type="button" id="previewTrimmedVideoBtn" class="px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold">
+                            <i class="fa-solid fa-play ml-1"></i>معاينة المقطع المقصوص
+                        </button>
+                        <button type="button" id="resetVideoTrimBtn" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px]">
+                            إلغاء القص (كامل الفيديو)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- لوحة هندسة الصوت المتقدمة (تخفيض الموسيقى الرئيسية أو حذفها + Fade In/Out + Auto-Ducking) -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 shadow-lg space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-emerald-400"></i>
+                        <h2 class="text-xs font-black text-white">لوحة هندسة الصوت والموسيقى الرئيسية</h2>
+                    </div>
+                    <span id="mainMusicStatusBadge" class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">الموسيقى الرئيسية: مفعّلة</span>
+                </div>
+
+                <!-- أزرار التحكم السريع بالموسيقى الرئيسية (تخفيض للخلفية / حذف الموسيقى / رفع ملف) -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                    <button type="button" id="lowerMusicBg15Btn" class="py-1.5 px-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-[11px] font-black transition">
+                        <i class="fa-solid fa-volume-low ml-1"></i>تخفيض للخلفية (15%)
+                    </button>
+                    <button type="button" id="toggleRemoveMainMusicBtn" class="py-1.5 px-2 rounded-xl bg-rose-950/80 hover:bg-rose-900 border border-rose-700/60 text-rose-200 text-[11px] font-black transition">
+                        <i class="fa-solid fa-volume-xmark ml-1"></i>حذف/إيقاف الموسيقى
+                    </button>
+                    <label class="cursor-pointer py-1.5 px-2 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-300 text-[11px] font-black text-center transition">
+                        <i class="fa-solid fa-music ml-1"></i>رفع ملف موسيقى
+                        <input id="customAudioFileInput" type="file" accept="audio/*,video/*" class="hidden">
+                    </label>
+                    <button type="button" id="testAudioSoundBtn" class="py-1.5 px-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 text-[11px] font-black transition">
+                        <i class="fa-solid fa-headphones ml-1"></i>تجربة الصوت (4ث)
+                    </button>
+                </div>
+
+                <!-- التحكم الدقيق بمستوى صوت الموسيقى الرئيسية + صوت الفيديو الأصلي -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-[11px]">
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-300 font-bold">مستوى صوت الموسيقى الرئيسية:</span>
+                            <span id="musicVolumePercentLabel" class="text-emerald-400 font-mono font-bold">35%</span>
+                        </div>
+                        <input id="musicMasterVolumeSlider" type="range" min="0" max="120" value="35" class="w-full">
+                        <div class="flex items-center justify-between gap-1 pt-0.5">
+                            <button type="button" data-vol="0" class="quick-vol-btn flex-1 py-0.5 bg-slate-900 hover:bg-slate-800 rounded text-[10px] text-slate-300 border border-slate-800">0%</button>
+                            <button type="button" data-vol="15" class="quick-vol-btn flex-1 py-0.5 bg-slate-900 hover:bg-slate-800 rounded text-[10px] text-amber-300 border border-slate-800">15%</button>
+                            <button type="button" data-vol="35" class="quick-vol-btn flex-1 py-0.5 bg-slate-900 hover:bg-slate-800 rounded text-[10px] text-emerald-300 border border-slate-800">35%</button>
+                            <button type="button" data-vol="70" class="quick-vol-btn flex-1 py-0.5 bg-slate-900 hover:bg-slate-800 rounded text-[10px] text-slate-300 border border-slate-800">70%</button>
+                            <button type="button" data-vol="100" class="quick-vol-btn flex-1 py-0.5 bg-slate-900 hover:bg-slate-800 rounded text-[10px] text-slate-300 border border-slate-800">100%</button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-300 font-bold">تقوية صوت كلام الفيديو الأصلي:</span>
+                            <span id="videoSpeechGainLabel" class="text-blue-400 font-mono font-bold">120%</span>
+                        </div>
+                        <input id="videoSpeechGainSlider" type="range" min="0" max="200" value="120" class="w-full">
+                        <label class="flex items-center gap-1.5 text-[10px] text-amber-300 font-bold cursor-pointer pt-0.5">
+                            <input id="autoDuckingToggle" type="checkbox" checked class="rounded accent-amber-400">
+                            <span>خفض تلقائي للموسيقى (Auto-Ducking) عندما يتحدث شخص بالفيديو</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- تدرج الصوت في البداية والنهاية (Fade In / Fade Out) + قص بداية الموسيقى -->
+                <div class="grid grid-cols-3 gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800 text-[11px]">
+                    <div>
+                        <div class="flex justify-between text-slate-400 mb-1">
+                            <span>تدرج البداية (Fade In):</span>
+                            <span id="fadeInSecLabel" class="text-emerald-400 font-mono">1.5s</span>
+                        </div>
+                        <input id="audioFadeInSlider" type="range" min="0" max="6" step="0.2" value="1.5" class="w-full">
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-slate-400 mb-1">
+                            <span>تدرج النهاية (Fade Out):</span>
+                            <span id="fadeOutSecLabel" class="text-emerald-400 font-mono">2.0s</span>
+                        </div>
+                        <input id="audioFadeOutSlider" type="range" min="0" max="6" step="0.2" value="2.0" class="w-full">
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-slate-400 mb-1">
+                            <span>بداية مقطع الموسيقى:</span>
+                            <span id="musicOffsetSecLabel" class="text-blue-400 font-mono">0.0s</span>
+                        </div>
+                        <input id="musicStartOffsetSlider" type="range" min="0" max="60" step="0.5" value="0" class="w-full">
+                    </div>
+                </div>
+
+                <!-- منحنى الصوت البصري -->
+                <canvas id="audioEnvelopeCanvas" width="420" height="44" class="w-full h-11 rounded-lg border border-slate-800 bg-slate-950"></canvas>
+            </div>
+
+            <!-- زر التصدير النهائي للفيديو -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 shadow-lg space-y-2.5">
+                <button type="button" id="exportVideoBtn" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-sm shadow-xl transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-file-video text-base"></i>
+                    <span>تصدير وتحميل فيديو التقرير النهائي (صورة + صوت مدمج)</span>
+                </button>
+                <div id="exportProgressBox" class="hidden space-y-1.5 pt-1">
+                    <div class="flex justify-between text-xs font-bold">
+                        <span class="text-emerald-400">جاري تصدير التقرير...</span>
+                        <span id="exportPercentLabel" class="font-mono text-amber-400">0%</span>
+                    </div>
+                    <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                        <div id="exportProgressBar" class="h-full bg-emerald-500 transition-all duration-150" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- ==================== الكود البرمجي الكامل للاستوديو ==================== -->
+    <script>
+        /********************************************************************
+         * 1. التوافقية وتأمين بيئة الرسم (Canvas Polyfills & Constants)
+         ********************************************************************/
+        const W = 1080;
+        const H = 1400;
+        const MAX_VIDEO_BYTES = 200 * 1024 * 1024; // 200 MB
+        const canvas = document.getElementById('montageCanvas');
+        const ctx = canvas.getContext('2d');
+
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+                const radius = Math.min(r || 0, w / 2, h / 2);
+                this.beginPath();
+                this.moveTo(x + radius, y);
+                this.arcTo(x + w, y, x + w, y + h, radius);
+                this.arcTo(x + w, y + h, x, y + h, radius);
+                this.arcTo(x, y + h, x, y, radius);
+                this.arcTo(x, y, x + w, y, radius);
+                this.closePath();
+                return this;
+            };
+        }
+
+        function showToast(msg) {
+            const box = document.getElementById('toastNotification');
+            const txt = document.getElementById('toastMessageText');
+            if (!box || !txt) return;
+            txt.textContent = msg;
+            box.classList.remove('hidden');
+            box.classList.add('flex');
+            clearTimeout(window.__toastTimer);
+            window.__toastTimer = setTimeout(() => {
+                box.classList.add('hidden');
+                box.classList.remove('flex');
+            }, 3400);
+        }
+
+        function showCustomConfirm(title, message, onConfirm) {
+            const modal = document.getElementById('customConfirmModal');
+            const titleEl = document.getElementById('confirmModalTitle');
+            const msgEl = document.getElementById('confirmModalMessage');
+            const okBtn = document.getElementById('confirmModalOkBtn');
+            const cancelBtn = document.getElementById('confirmModalCancelBtn');
+            if (!modal) return;
+            titleEl.textContent = title;
+            msgEl.textContent = message;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            const close = () => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            };
+            okBtn.onclick = () => {
+                close();
+                if (typeof onConfirm === 'function') onConfirm();
+            };
+            cancelBtn.onclick = close;
+        }
+
+        /********************************************************************
+         * 2. نظام قفل المشتركين بكلمات سر متعددة (Multi-Subscriber Auth)
+         ********************************************************************/
+        const SUBSCRIBERS_STORAGE_KEY = 'ifao_studio_subscribers_v2';
+        const SESSION_AUTH_KEY = 'ifao_studio_active_subscriber_v2';
+
+        const defaultSubscribers = [
+            { name: 'المدير العام IFAO', pass: 'ifaostudio2026', uses: 1 },
+            { name: 'مشترك باقة احترافية 1', pass: 'ifaosub123', uses: 0 },
+            { name: 'مشترك VIP', pass: 'vipuser2026', uses: 0 },
+            { name: 'أحمد - فريق المونتاج', pass: 'clientahmad', uses: 0 }
+        ];
+
+        // خوارزمية توليد وفحص أكواد الاشتراك الذكية التي تعمل على أي موبايل دون سيرفر خارجي
+        const LICENSE_SECRET_SALT = 'IFAO_PRO_2026_KEY';
+
+        function computeLicenseSignature(nameHex, expDaysEpoch) {
+            const raw = `${nameHex}:${expDaysEpoch}:${LICENSE_SECRET_SALT}`;
+            let hash = 2166136261;
+            for (let i = 0; i < raw.length; i++) {
+                hash ^= raw.charCodeAt(i);
+                hash = Math.imul(hash, 16777619);
+            }
+            return (hash >>> 0).toString(36).toUpperCase().slice(0, 5).padStart(5, 'X');
+        }
+
+        function generateSmartSubscriberKey(subscriberName, validDays = 30) {
+            const cleanName = (subscriberName || 'مشترك').trim().slice(0, 18);
+            const utf8Bytes = new TextEncoder().encode(cleanName);
+            let hexName = '';
+            utf8Bytes.forEach(b => { hexName += b.toString(16).padStart(2, '0'); });
+            const expEpochDays = Math.floor(Date.now() / 86400000) + Number(validDays || 30);
+            const expCode = expEpochDays.toString(36).toUpperCase();
+            const sig = computeLicenseSignature(hexName.toUpperCase(), expCode);
+            return `IFAO-${expCode}-${sig}-${hexName.toUpperCase()}`;
+        }
+
+        function verifySmartSubscriberKey(inputKey) {
+            if (!inputKey || !inputKey.toUpperCase().startsWith('IFAO-')) return null;
+            const parts = inputKey.trim().toUpperCase().split('-');
+            if (parts.length !== 4) return null;
+            const [, expCode, sig, hexName] = parts;
+            const expectedSig = computeLicenseSignature(hexName, expCode);
+            if (sig !== expectedSig) return { valid: false, reason: 'كود الاشتراك غير صالح أو تم التلاعب به.' };
+
+            const expEpochDays = parseInt(expCode, 36);
+            const todayEpochDays = Math.floor(Date.now() / 86400000);
+            if (todayEpochDays > expEpochDays) {
+                return { valid: false, reason: 'انتهت صلاحية كود الاشتراك هذا! يرجى تجديد الاشتراك.' };
+            }
+
+            try {
+                const bytes = new Uint8Array(hexName.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+                const decodedName = new TextDecoder().decode(bytes);
+                const remainingDays = expEpochDays - todayEpochDays;
+                return { valid: true, name: decodedName || 'مشترك معتمد', remainingDays };
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function copyTextSafe(text) {
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                ta.remove();
+            } catch (e) {}
+        }
+
+        function getSubscribersList() {
+            try {
+                const raw = localStorage.getItem(SUBSCRIBERS_STORAGE_KEY);
+                if (!raw) {
+                    localStorage.setItem(SUBSCRIBERS_STORAGE_KEY, JSON.stringify(defaultSubscribers));
+                    return [...defaultSubscribers];
+                }
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) && parsed.length > 0 ? parsed : [...defaultSubscribers];
+            } catch (e) {
+                return [...defaultSubscribers];
+            }
+        }
+
+        function saveSubscribersList(list) {
+            try {
+                localStorage.setItem(SUBSCRIBERS_STORAGE_KEY, JSON.stringify(list));
+            } catch (e) {}
+        }
+
+        function checkExistingAuthSession() {
+            const lock = document.getElementById('authLockScreen');
+            const badge = document.getElementById('activeSubscriberBadge');
+            try {
+                const savedName = sessionStorage.getItem(SESSION_AUTH_KEY);
+                if (savedName) {
+                    if (lock) lock.classList.add('hidden');
+                    if (badge) badge.textContent = `المشترك: ${savedName}`;
+                }
+            } catch (e) {}
+        }
+
+        function renderSubscribersAdminList() {
+            const container = document.getElementById('subscribersListContainer');
+            if (!container) return;
+            const list = getSubscribersList();
+            container.innerHTML = '';
+            list.forEach((sub, idx) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center justify-between bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs';
+
+                const info = document.createElement('div');
+                info.innerHTML = `<span class="font-bold text-white">${sub.name}</span> <span class="text-amber-400 font-mono mr-2">(${sub.pass})</span>`;
+
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.className = 'text-rose-400 hover:text-rose-300 text-xs px-1.5';
+                delBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+                delBtn.addEventListener('click', () => {
+                    const updated = getSubscribersList().filter((_, i) => i !== idx);
+                    saveSubscribersList(updated);
+                    renderSubscribersAdminList();
+                    showToast('تم حذف كلمة سر المشترك');
+                });
+
+                row.appendChild(info);
+                row.appendChild(delBtn);
+                container.appendChild(row);
+            });
+        }
+
+        /********************************************************************
+         * 3. قاعدة البيانات الدائمة (IndexedDB) لحفظ القالب والخط والموسيقى
+         ********************************************************************/
+        const DB_NAME = 'IFAOStudioAssetsDB_v3';
+        const STORE_NAME = 'assets';
+
+        function openAssetsDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(DB_NAME, 1);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME);
+                    }
+                };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function saveAssetToDB(key, val) {
+            try {
+                const db = await openAssetsDB();
+                return new Promise((resolve) => {
+                    const tx = db.transaction(STORE_NAME, 'readwrite');
+                    tx.objectStore(STORE_NAME).put(val, key);
+                    tx.oncomplete = () => resolve(true);
+                    tx.onerror = () => resolve(false);
+                });
+            } catch (e) {
+                return false;
+            }
+        }
+
+        async function loadAssetFromDB(key) {
+            try {
+                const db = await openAssetsDB();
+                return new Promise((resolve) => {
+                    const tx = db.transaction(STORE_NAME, 'readonly');
+                    const req = tx.objectStore(STORE_NAME).get(key);
+                    req.onsuccess = () => resolve(req.result || null);
+                    req.onerror = () => resolve(null);
+                });
+            } catch (e) {
+                return null;
+            }
+        }
+
+        async function deleteAssetFromDB(key) {
+            try {
+                const db = await openAssetsDB();
+                return new Promise((resolve) => {
+                    const tx = db.transaction(STORE_NAME, 'readwrite');
+                    tx.objectStore(STORE_NAME).delete(key);
+                    tx.oncomplete = () => resolve(true);
+                    tx.onerror = () => resolve(false);
+                });
+            } catch (e) {
+                return false;
+            }
+        }
+
+        /********************************************************************
+         * 4. حالة الاستوديو، القالب، ونظام المشاريع المتعددة (حتى 3 مشاريع)
+         ********************************************************************/
+        let useTemplateOverlay = false; // مع قالب أو بدون قالب
+        let uploadedTemplateImg = null;
+        let processedTemplateCanvas = null; // نسخة معالجة لإزالة الأبيض عند الحاجة
+        let templateBlendMode = 'underlay';
+        let mediaViewportRatio = 0.62;
+        let mediaFeatherPx = 140;
+
+        let mainTextFontSize = 44;
+        let mainTextPosY = 980;
+        let captionBgOpacity = 0.58;
+        let captionPosY = 700;
+        let captionPosX = 0;
+        let lastRenderedCaptionBounds = null; // لحفظ إحداثيات صندوق الكابشن لتمكين سحبه بالماوس مباشرة
+
+        let slides = [];
+        let activeSlideIndex = 0;
+        let currentTime = 0;
+        let isPlaying = false;
+        let rafId = null;
+        let lastFrameTimestamp = 0;
+
+        // الذاكرة المؤقتة لالتفاف النصوص لمنع أي بطء (Zero-Lag Text Wrap Cache)
+        const textWrapCache = new Map();
+
+        function createDefaultSlide(textStr = '') {
+            return {
+                id: 'sld_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+                text: textStr || '',
+                duration: 5,
+                mediaType: 'none', // 'none' | 'image' | 'video'
+                mediaElem: null,
+                mediaFileObj: null,
+                mediaThumbUrl: '',
+                mediaFileName: '',
+                videoMuted: false,
+                trimStart: 0,
+                trimEnd: 5,
+                naturalVideoDuration: 5,
+                scale: 1,
+                panX: 0,
+                panY: 0,
+                captionEnabled: true,
+                captionMain: '',
+                captionSub: '',
+                captionSegments: []
+            };
+        }
+
+        // نظام المشاريع (حتى 3 مشاريع)
+        let projects = [
+            {
+                id: 'proj_1',
+                name: 'التقرير الأول 1',
+                slides: [createDefaultSlide()],
+                activeSlideIndex: 0,
+                bulkText: ''
+            }
+        ];
+        let activeProjectIndex = 0;
+
+        function initProjectsSystem() {
+            slides = projects[activeProjectIndex].slides;
+            activeSlideIndex = projects[activeProjectIndex].activeSlideIndex || 0;
+            renderProjectTabsUI();
+            renderSlidesCardsList();
+            syncActiveSlideMainTextEditor();
+            renderInteractiveWordChips();
+            syncCaptionPanelFromActiveSlide();
+            syncActiveVideoTrimPanel();
+        }
+
+        function saveCurrentStateToActiveProject() {
+            const p = projects[activeProjectIndex];
+            if (!p) return;
+            p.slides = slides;
+            p.activeSlideIndex = activeSlideIndex;
+            const bulkEl = document.getElementById('bulkReportTextarea');
+            if (bulkEl) p.bulkText = bulkEl.value;
+        }
+
+        function switchProjectTab(projIdx) {
+            if (projIdx < 0 || projIdx >= projects.length) return;
+            pausePlayback();
+            saveCurrentStateToActiveProject();
+            activeProjectIndex = projIdx;
+            const p = projects[activeProjectIndex];
+            slides = p.slides;
+            activeSlideIndex = Math.min(p.activeSlideIndex || 0, Math.max(0, slides.length - 1));
+            currentTime = 0;
+
+            const bulkEl = document.getElementById('bulkReportTextarea');
+            if (bulkEl) bulkEl.value = p.bulkText || '';
+
+            renderProjectTabsUI();
+            renderSlidesCardsList();
+            syncActiveSlideMainTextEditor();
+            renderInteractiveWordChips();
+            syncCaptionPanelFromActiveSlide();
+            syncActiveVideoTrimPanel();
+            scheduleSingleFrameRender();
+        }
+
+        function createNewProjectTab() {
+            if (projects.length >= 3) {
+                showToast('الحد الأقصى المسموح به هو 3 مشاريع مفتوحة في نفس الوقت.');
+                return;
+            }
+            saveCurrentStateToActiveProject();
+            const newIdx = projects.length + 1;
+            projects.push({
+                id: 'proj_' + Date.now(),
+                name: `مشروع تقرير ${newIdx}`,
+                slides: [createDefaultSlide('')],
+                activeSlideIndex: 0,
+                bulkText: ''
+            });
+            switchProjectTab(projects.length - 1);
+            showToast('تم فتح مشروع جديد مستقل!');
+        }
+
+        function closeProjectTab(projIdx) {
+            if (projects.length <= 1) {
+                showToast('يجب بقاء مشروع واحد مفتوح على الأقل، يمكنك استخدام زر إفراغ المشروع.');
+                return;
+            }
+            showCustomConfirm('إغلاق نافذة المشروع', `هل تريد إغلاق "${projects[projIdx].name}"؟`, () => {
+                pausePlayback();
+                projects.splice(projIdx, 1);
+                if (activeProjectIndex >= projects.length) {
+                    activeProjectIndex = projects.length - 1;
+                }
+                const p = projects[activeProjectIndex];
+                slides = p.slides;
+                activeSlideIndex = 0;
+                currentTime = 0;
+                renderProjectTabsUI();
+                renderSlidesCardsList();
+                syncActiveSlideMainTextEditor();
+                renderInteractiveWordChips();
+                syncCaptionPanelFromActiveSlide();
+                syncActiveVideoTrimPanel();
+                scheduleSingleFrameRender();
+            });
+        }
+
+        function clearCurrentProjectContent() {
+            showCustomConfirm('إفراغ محتوى المشروع الحالي', 'سيتم مسح جميع الصور والفيديوهات والنصوص في هذا المشروع للبدء بتقرير جديد (مع الحفاظ على القالب والخط والموسيقى). هل أنت متأكد؟', () => {
+                pausePlayback();
+                slides.forEach(s => {
+                    if (s.mediaType === 'video' && s.mediaElem) {
+                        try {
+                            s.mediaElem.pause();
+                            s.mediaElem.remove();
+                        } catch (e) {}
+                    }
+                });
+                slides = [createDefaultSlide('')];
+                projects[activeProjectIndex].slides = slides;
+                projects[activeProjectIndex].bulkText = '';
+                activeSlideIndex = 0;
+                currentTime = 0;
+
+                const bulkEl = document.getElementById('bulkReportTextarea');
+                if (bulkEl) bulkEl.value = '';
+
+                renderSlidesCardsList();
+                syncActiveSlideMainTextEditor();
+                renderInteractiveWordChips();
+                syncCaptionPanelFromActiveSlide();
+                syncActiveVideoTrimPanel();
+                scheduleSingleFrameRender();
+                showToast('تم إفراغ محتوى المشروع الحالي بنجاح!');
+            });
+        }
+
+        function renderProjectTabsUI() {
+            const container = document.getElementById('projectTabsContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            projects.forEach((proj, idx) => {
+                const isAct = idx === activeProjectIndex;
+                const wrap = document.createElement('div');
+                wrap.className = `flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold cursor-pointer transition ${
+                    isAct ? 'bg-blue-600 text-white shadow' : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                }`;
+
+                const titleSpan = document.createElement('span');
+                titleSpan.textContent = proj.name;
+                titleSpan.addEventListener('click', () => switchProjectTab(idx));
+
+                wrap.appendChild(titleSpan);
+
+                if (projects.length > 1) {
+                    const closeBtn = document.createElement('button');
+                    closeBtn.type = 'button';
+                    closeBtn.className = 'hover:text-rose-300 px-1 text-[10px]';
+                    closeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                    closeBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        closeProjectTab(idx);
+                    });
+                    wrap.appendChild(closeBtn);
+                }
+                container.appendChild(wrap);
+            });
+        }
+
+        /********************************************************************
+         * 5. إدارة القالب المرفوع (مع قالب / بدون قالب بشكل فوري)
+         ********************************************************************/
+        function buildTransparentTemplateCanvas(img) {
+            const c = document.createElement('canvas');
+            c.width = W;
+            c.height = H;
+            const cctx = c.getContext('2d');
+            cctx.drawImage(img, 0, 0, W, H);
+            try {
+                const imgData = cctx.getImageData(0, 0, W, H);
+                const d = imgData.data;
+                // تحويل اللون الأبيض النقي في الجزء العلوي من القالب إلى شفاف عند اختيار وضع overlay
+                for (let i = 0; i < d.length; i += 4) {
+                    const r = d[i], g = d[i + 1], b = d[i + 2];
+                    const pixelIndex = i / 4;
+                    const y = Math.floor(pixelIndex / W);
+                    if (y < H * 0.72 && r > 240 && g > 242 && b > 245) {
+                        const whiteness = Math.min(1, (r + g + b - 720) / 45);
+                        d[i + 3] = Math.round(d[i + 3] * (1 - whiteness * 0.96));
+                    }
+                }
+                cctx.putImageData(imgData, 0, 0);
+            } catch (e) {}
+            return c;
+        }
+
+        function setTemplateMode(enableTemplate) {
+            if (enableTemplate && !uploadedTemplateImg) {
+                useTemplateOverlay = true;
+                updateTemplateButtonsUI();
+                showToast('تم تفعيل خيار "مع قالب" — ارفع صورة القالب من زر (رفع القالب من جهازك) لتظهر فوراً.');
+                scheduleSingleFrameRender();
+                return;
+            }
+            useTemplateOverlay = Boolean(enableTemplate);
+            updateTemplateButtonsUI();
+            scheduleSingleFrameRender();
+        }
+
+        function updateTemplateButtonsUI() {
+            const btnWith = document.getElementById('btnModeWithTemplate');
+            const btnWithout = document.getElementById('btnModeWithoutTemplate');
+            const badge = document.getElementById('templateStatusBadge');
+
+            if (useTemplateOverlay) {
+                if (btnWith) btnWith.className = 'py-2 px-3 rounded-lg text-xs font-black transition flex items-center justify-center gap-1.5 bg-blue-600 text-white shadow';
+                if (btnWithout) btnWithout.className = 'py-2 px-3 rounded-lg text-xs font-black transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-white';
+                if (badge) {
+                    badge.textContent = uploadedTemplateImg ? 'مع قالب (القالب المرفوع مفعّل)' : 'مع قالب (بانتظار رفع صورة القالب)';
+                    badge.className = 'text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+                }
+            } else {
+                if (btnWithout) btnWithout.className = 'py-2 px-3 rounded-lg text-xs font-black transition flex items-center justify-center gap-1.5 bg-rose-600 text-white shadow';
+                if (btnWith) btnWith.className = 'py-2 px-3 rounded-lg text-xs font-black transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-white';
+                if (badge) {
+                    badge.textContent = 'بدون قالب (مباشر)';
+                    badge.className = 'text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700';
+                }
+            }
+        }
+
+        /********************************************************************
+         * 6. هندسة الصوت المتقدمة (Music Synth/Custom + Fade + Auto-Ducking)
+         ********************************************************************/
+        let audioCtx = null;
+        let masterDestination = null;
+        let bgMusicGainNode = null;
+        let customAudioBuffer = null;
+        let activeBufferSource = null;
+        let synthIntervalId = null;
+
+        let isMainMusicEnabled = true;
+        let musicMasterVolume = 0.35; // 35%
+        let videoSpeechGain = 1.2;    // 120%
+        let autoDuckingEnabled = true;
+        let fadeInSeconds = 1.5;
+        let fadeOutSeconds = 2.0;
+        let musicStartOffset = 0;
+
+        function ensureAudioContext() {
+            if (!audioCtx) {
+                const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContextClass();
+                masterDestination = audioCtx.createMediaStreamDestination();
+                bgMusicGainNode = audioCtx.createGain();
+                bgMusicGainNode.gain.value = musicMasterVolume;
+                bgMusicGainNode.connect(audioCtx.destination);
+                bgMusicGainNode.connect(masterDestination);
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function connectVideoElementToAudioGraph(videoEl) {
+            if (!videoEl || videoEl.__audioConnected) return;
+            try {
+                const actx = ensureAudioContext();
+                const src = actx.createMediaElementSource(videoEl);
+                // فلتر تنقية صوت المتحدث (High-pass 85Hz + Presence boost 2.5kHz)
+                const hpFilter = actx.createBiquadFilter();
+                hpFilter.type = 'highpass';
+                hpFilter.frequency.value = 85;
+
+                const presenceFilter = actx.createBiquadFilter();
+                presenceFilter.type = 'peaking';
+                presenceFilter.frequency.value = 2500;
+                presenceFilter.gain.value = 3.5;
+
+                const vidGain = actx.createGain();
+                vidGain.gain.value = videoSpeechGain;
+
+                src.connect(hpFilter);
+                hpFilter.connect(presenceFilter);
+                presenceFilter.connect(vidGain);
+                vidGain.connect(actx.destination);
+                vidGain.connect(masterDestination);
+
+                videoEl.__audioConnected = true;
+                videoEl.__vidGainNode = vidGain;
+            } catch (e) {}
+        }
+
+        function computeAudioGainMultiplierAtTime(sec, totalDuration) {
+            if (!isMainMusicEnabled) return 0;
+            let base = musicMasterVolume;
+
+            // Auto-Ducking عند وجود فيديو متحدث غير مكتوم
+            if (autoDuckingEnabled) {
+                const { slide } = getSlideAtTime(sec);
+                if (slide && slide.mediaType === 'video' && !slide.videoMuted) {
+                    base = Math.min(base, 0.12);
+                }
+            }
+
+            // Fade-In ناعم بمنحنى Cosine
+            let fadeInFactor = 1;
+            if (fadeInSeconds > 0.05 && sec < fadeInSeconds) {
+                const p = Math.max(0, Math.min(1, sec / fadeInSeconds));
+                fadeInFactor = 0.5 - 0.5 * Math.cos(p * Math.PI);
+            }
+
+            // Fade-Out ناعم في نهاية التقرير
+            let fadeOutFactor = 1;
+            const rem = Math.max(0, totalDuration - sec);
+            if (fadeOutSeconds > 0.05 && rem < fadeOutSeconds) {
+                const p = Math.max(0, Math.min(1, rem / fadeOutSeconds));
+                fadeOutFactor = 0.5 - 0.5 * Math.cos(p * Math.PI);
+            }
+
+            return base * fadeInFactor * fadeOutFactor;
+        }
+
+        function applyRealtimeAudioFade(sec) {
+            if (!audioCtx || !bgMusicGainNode) return;
+            const total = getTotalDuration();
+            const targetGain = computeAudioGainMultiplierAtTime(sec, total);
+            bgMusicGainNode.gain.setTargetAtTime(targetGain, audioCtx.currentTime, 0.04);
+
+            slides.forEach(s => {
+                if (s.mediaType === 'video' && s.mediaElem && s.mediaElem.__vidGainNode) {
+                    s.mediaElem.__vidGainNode.gain.setTargetAtTime(s.videoMuted ? 0 : videoSpeechGain, audioCtx.currentTime, 0.03);
+                }
+            });
+        }
+
+        async function startBackgroundMusicPlayback(fromTimelineSec = 0) {
+            stopBackgroundMusicPlayback();
+            if (!isMainMusicEnabled) return;
+            const actx = ensureAudioContext();
+            await actx.resume();
+
+            applyRealtimeAudioFade(fromTimelineSec);
+
+            if (customAudioBuffer) {
+                const src = actx.createBufferSource();
+                src.buffer = customAudioBuffer;
+                src.loop = true;
+                src.connect(bgMusicGainNode);
+                const offset = (musicStartOffset + fromTimelineSec) % Math.max(1, customAudioBuffer.duration);
+                src.start(0, offset);
+                activeBufferSource = src;
+            } else {
+                // موسيقى تقارير إخبارية درامية مولّدة داخلياً عند عدم رفع ملف خارجي
+                const playPulse = () => {
+                    if (!isPlaying && !window.__testingAudio) return;
+                    const now = actx.currentTime;
+                    const osc = actx.createOscillator();
+                    const subGain = actx.createGain();
+                    osc.type = 'sawtooth';
+                    const notes = [110, 110, 130.81, 98];
+                    const step = Math.floor(now * 2) % notes.length;
+                    osc.frequency.setValueAtTime(notes[step], now);
+
+                    const filter = actx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(260, now);
+
+                    subGain.gain.setValueAtTime(0.18, now);
+                    subGain.gain.exponentialRampToValueAtTime(0.008, now + 0.45);
+
+                    osc.connect(filter);
+                    filter.connect(subGain);
+                    subGain.connect(bgMusicGainNode);
+
+                    osc.start(now);
+                    osc.stop(now + 0.48);
+                };
+                playPulse();
+                synthIntervalId = setInterval(playPulse, 500);
+            }
+        }
+
+        function stopBackgroundMusicPlayback() {
+            if (activeBufferSource) {
+                try { activeBufferSource.stop(); } catch (e) {}
+                try { activeBufferSource.disconnect(); } catch (e) {}
+                activeBufferSource = null;
+            }
+            if (synthIntervalId) {
+                clearInterval(synthIntervalId);
+                synthIntervalId = null;
+            }
+        }
+
+        function updateMainMusicStatusUI() {
+            const badge = document.getElementById('mainMusicStatusBadge');
+            const toggleBtn = document.getElementById('toggleRemoveMainMusicBtn');
+            const volLabel = document.getElementById('musicVolumePercentLabel');
+
+            if (volLabel) volLabel.textContent = `${Math.round(musicMasterVolume * 100)}%`;
+
+            if (isMainMusicEnabled && musicMasterVolume > 0) {
+                if (badge) {
+                    badge.textContent = customAudioBuffer ? 'الموسيقى المرفوعة: مفعّلة' : 'الموسيقى الرئيسية: مفعّلة';
+                    badge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+                }
+                if (toggleBtn) {
+                    toggleBtn.innerHTML = '<i class="fa-solid fa-volume-xmark ml-1"></i>حذف/إيقاف الموسيقى';
+                }
+            } else {
+                if (badge) {
+                    badge.textContent = 'الموسيقى الرئيسية: متوقفة / محذوفة';
+                    badge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30';
+                }
+                if (toggleBtn) {
+                    toggleBtn.innerHTML = '<i class="fa-solid fa-volume-high ml-1"></i>إعادة تفعيل الموسيقى';
+                }
+            }
+            drawAudioEnvelopeVisualizer(currentTime);
+        }
+
+        function updateAudioEnvelopeSettings() {
+            fadeInSeconds = parseFloat(document.getElementById('audioFadeInSlider')?.value) || 0;
+            fadeOutSeconds = parseFloat(document.getElementById('audioFadeOutSlider')?.value) || 0;
+            musicStartOffset = parseFloat(document.getElementById('musicStartOffsetSlider')?.value) || 0;
+
+            const fiLbl = document.getElementById('fadeInSecLabel');
+            const foLbl = document.getElementById('fadeOutSecLabel');
+            const offLbl = document.getElementById('musicOffsetSecLabel');
+            if (fiLbl) fiLbl.textContent = `${fadeInSeconds.toFixed(1)}s`;
+            if (foLbl) foLbl.textContent = `${fadeOutSeconds.toFixed(1)}s`;
+            if (offLbl) offLbl.textContent = `${musicStartOffset.toFixed(1)}s`;
+
+            drawAudioEnvelopeVisualizer(currentTime);
+        }
+
+        function drawAudioEnvelopeVisualizer(playheadSec = 0) {
+            const cvs = document.getElementById('audioEnvelopeCanvas');
+            if (!cvs) return;
+            const c = cvs.getContext('2d');
+            const w = cvs.width;
+            const h = cvs.height;
+            c.clearRect(0, 0, w, h);
+            c.fillStyle = '#020617';
+            c.fillRect(0, 0, w, h);
+
+            const totalDur = Math.max(1, getTotalDuration());
+            c.beginPath();
+            c.moveTo(0, h);
+
+            const steps = 100;
+            for (let i = 0; i <= steps; i++) {
+                const ratio = i / steps;
+                const sec = ratio * totalDur;
+                const g = Math.min(1.3, computeAudioGainMultiplierAtTime(sec, totalDur));
+                const y = h - (g / 1.3) * (h - 8) - 2;
+                c.lineTo(ratio * w, y);
+            }
+            c.lineTo(w, h);
+            c.closePath();
+
+            const grad = c.createLinearGradient(0, 0, 0, h);
+            if (isMainMusicEnabled && musicMasterVolume > 0) {
+                grad.addColorStop(0, 'rgba(16, 185, 129, 0.45)');
+                grad.addColorStop(1, 'rgba(16, 185, 129, 0.05)');
+            } else {
+                grad.addColorStop(0, 'rgba(244, 63, 94, 0.25)');
+                grad.addColorStop(1, 'rgba(244, 63, 94, 0.02)');
+            }
+            c.fillStyle = grad;
+            c.fill();
+
+            const playheadX = Math.max(0, Math.min(w, (playheadSec / totalDur) * w));
+            c.beginPath();
+            c.moveTo(playheadX, 0);
+            c.lineTo(playheadX, h);
+            c.strokeStyle = '#fbbf24';
+            c.lineWidth = 2;
+            c.stroke();
+        }
+
+        /********************************************************************
+         * 7. الاستخراج التلقائي للكابشن من الفيديو + التعديل اليدوي + التمييز
+         ********************************************************************/
+        // تحويل قناة الصوت المستخرجة من الفيديو إلى ملف WAV مصغر (16kHz Mono) لإرساله لمحرك التفريغ الصوتي مباشرة
+        function encodeAudioBufferToWavBase64(audioBuffer, startSec = 0, endSec = 45) {
+            const targetSampleRate = 8000;
+            const numChannels = audioBuffer.numberOfChannels;
+            const srcRate = audioBuffer.sampleRate;
+            const s0 = Math.max(0, Math.floor(startSec * srcRate));
+            const s1 = Math.min(audioBuffer.length, Math.floor(endSec * srcRate));
+            const totalSrcSamples = Math.max(1, s1 - s0);
+            const ratio = srcRate / targetSampleRate;
+            const outLength = Math.max(1, Math.floor(totalSrcSamples / ratio));
+
+            const pcm16 = new Int16Array(outLength);
+            const ch0 = audioBuffer.getChannelData(0);
+            const ch1 = numChannels > 1 ? audioBuffer.getChannelData(1) : null;
+
+            for (let i = 0; i < outLength; i++) {
+                const srcIdx = Math.min(audioBuffer.length - 1, s0 + Math.floor(i * ratio));
+                let sample = ch1 ? (ch0[srcIdx] + ch1[srcIdx]) * 0.5 : ch0[srcIdx];
+                sample = Math.max(-1, Math.min(1, sample));
+                pcm16[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+            }
+
+            const wavBuffer = new ArrayBuffer(44 + pcm16.length * 2);
+            const view = new DataView(wavBuffer);
+            const writeStr = (offset, str) => {
+                for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+            };
+
+            writeStr(0, 'RIFF');
+            view.setUint32(4, 36 + pcm16.length * 2, true);
+            writeStr(8, 'WAVE');
+            writeStr(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, 1, true);
+            view.setUint32(24, targetSampleRate, true);
+            view.setUint32(28, targetSampleRate * 2, true);
+            view.setUint16(32, 2, true);
+            view.setUint16(34, 16, true);
+            writeStr(36, 'data');
+            view.setUint32(40, pcm16.length * 2, true);
+
+            const outBytes = new Uint8Array(wavBuffer);
+            outBytes.set(new Uint8Array(pcm16.buffer), 44);
+
+            let binary = '';
+            const chunkSize = 0x8000;
+            for (let i = 0; i < outBytes.length; i += chunkSize) {
+                binary += String.fromCharCode.apply(null, outBytes.subarray(i, i + chunkSize));
+            }
+            return btoa(binary);
+        }
+
+        async function transcribeAudioViaGeminiAPI(base64Audio, mimeType, durationSec) {
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const systemPrompt = `أنت مفرغ صوتي احترافي لتقارير إخبارية. استخرج الكلام المنطوق في المقطع الصوتي المرفق بدقة تامة كما قيل وبدون أي كلام إضافي من عندك. قسّم الكلام إلى جمل زمنية قصيرة متتالية تناسب كابشن الفيديو (كل جملة من 3 إلى 8 كلمات) ضمن المدة الإجمالية (${durationSec.toFixed(1)} ثانية). إذا لم يوجد أي كلام بشري واضح في الصوت أعد مصفوفة فارغة.`;
+
+            const payload = {
+                contents: [{
+                    role: "user",
+                    parts: [
+                        { text: "استخرج الكلام المنطوق من هذا الفيديو وقسمه إلى مقاطع كابشن زمنية دقيقة." },
+                        { inlineData: { mimeType: mimeType, data: base64Audio } }
+                    ]
+                }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            fullText: { type: "STRING" },
+                            segments: {
+                                type: "ARRAY",
+                                items: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        start: { type: "NUMBER" },
+                                        end: { type: "NUMBER" },
+                                        text: { type: "STRING" }
+                                    },
+                                    propertyOrdering: ["start", "end", "text"]
+                                }
+                            }
+                        },
+                        propertyOrdering: ["fullText", "segments"]
+                    }
+                }
+            };
+
+            const delays = [1000, 2000, 4000];
+            for (let attempt = 0; attempt <= delays.length; attempt++) {
+                try {
+                    const res = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!res.ok) throw new Error('API Error ' + res.status);
+                    const result = await res.json();
+                    const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (jsonText) {
+                        return JSON.parse(jsonText);
+                    }
+                } catch (err) {
+                    if (attempt < delays.length) {
+                        await new Promise(r => setTimeout(r, delays[attempt]));
+                    }
+                }
+            }
+            return null;
+        }
+
+        async function autoAnalyzeAndExtractVideoCaption(slide, fileObj) {
+            if (!slide) return;
+            const statusEl = document.getElementById('speechExtractionStatus');
+            const extractBtn = document.getElementById('autoExtractVideoCaptionBtn');
+            slide.captionEnabled = true;
+
+            const targetFile = fileObj || slide.mediaFileObj;
+
+            if (slide.mediaType === 'video' && (targetFile || slide.mediaElem)) {
+                const tStart = slide.trimStart || 0;
+                const tEnd = slide.trimEnd || slide.naturalVideoDuration || 5;
+                const dur = Math.max(1.5, tEnd - tStart);
+
+                if (statusEl) {
+                    statusEl.textContent = '⏳ جاري استخراج الصوت من الفيديو وتفريغ الكلام تلقائياً...';
+                }
+                if (extractBtn) {
+                    extractBtn.disabled = true;
+                    extractBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-1"></i>جاري استخراج الكابشن من الفيديو...';
+                }
+
+                try {
+                    let wavBase64 = null;
+
+                    if (targetFile) {
+                        const actx = ensureAudioContext();
+                        const arrBuf = await targetFile.arrayBuffer();
+                        const decodedAudio = await actx.decodeAudioData(arrBuf.slice(0));
+                        wavBase64 = encodeAudioBufferToWavBase64(decodedAudio, tStart, Math.min(decodedAudio.duration, tStart + 60));
+                    }
+
+                    if (wavBase64) {
+                        const aiResult = await transcribeAudioViaGeminiAPI(wavBase64, 'audio/wav', dur);
+                        if (aiResult && (aiResult.fullText || (Array.isArray(aiResult.segments) && aiResult.segments.length > 0))) {
+                            const validSegs = (aiResult.segments || [])
+                                .filter(s => s && s.text && s.text.trim())
+                                .map(s => ({
+                                    start: Number(Math.max(0, (Number(s.start) || 0) + tStart).toFixed(1)),
+                                    end: Number(Math.max(0.5, (Number(s.end) || dur) + tStart).toFixed(1)),
+                                    text: s.text.trim()
+                                }));
+
+                            if (validSegs.length > 0) {
+                                slide.captionSegments = validSegs;
+                                slide.captionMain = validSegs[0].text;
+                            } else if (aiResult.fullText && aiResult.fullText.trim()) {
+                                slide.captionMain = aiResult.fullText.trim();
+                                slide.captionSegments = [{
+                                    start: Number(tStart.toFixed(1)),
+                                    end: Number(tEnd.toFixed(1)),
+                                    text: slide.captionMain
+                                }];
+                            }
+
+                            syncCaptionPanelFromActiveSlide();
+                            renderSlidesCardsList();
+                            scheduleSingleFrameRender();
+                            if (statusEl) {
+                                statusEl.textContent = '✅ تم استخراج وكتابة الكابشن من الفيديو تلقائياً!';
+                            }
+                            showToast('تم استخراج الكابشن من صوت الفيديو تلقائياً بنجاح!');
+                            if (extractBtn) {
+                                extractBtn.disabled = false;
+                                extractBtn.innerHTML = '<i class="fa-solid fa-closed-captioning ml-1"></i>استخراج وتوليد الكابشن تلقائياً من الفيديو الحالي';
+                            }
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Direct video audio extraction fallback:', err);
+                }
+
+                if (extractBtn) {
+                    extractBtn.disabled = false;
+                    extractBtn.innerHTML = '<i class="fa-solid fa-closed-captioning ml-1"></i>استخراج وتوليد الكابشن تلقائياً من الفيديو الحالي';
+                }
+
+                // في حال تعذر التحليل السحابي أو كان الفيديو بدون صوت واضح، نجهز المقطع الزمني الفارغ ونشغل الاستماع المباشر كبديل
+                if (!Array.isArray(slide.captionSegments) || slide.captionSegments.length === 0) {
+                    slide.captionSegments = [{
+                        start: Number(tStart.toFixed(1)),
+                        end: Number(tEnd.toFixed(1)),
+                        text: slide.captionMain || ''
+                    }];
+                }
+
+                syncCaptionPanelFromActiveSlide();
+                renderSlidesCardsList();
+                scheduleSingleFrameRender();
+
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (SpeechRecognition && !isLiveRecognizing) {
+                    toggleLiveSpeechRecognitionForActiveSlide();
+                } else if (statusEl) {
+                    statusEl.textContent = 'لم يتم رصد كلام واضح في ملف الفيديو — يمكنك كتابة الكابشن مباشرة بالأسفل.';
+                }
+            } else {
+                syncCaptionPanelFromActiveSlide();
+                renderSlidesCardsList();
+                scheduleSingleFrameRender();
+                if (statusEl) {
+                    statusEl.textContent = 'الكابشن مفعّل — ارفع فيديو فيه كلام لاستخراجه تلقائياً أو اكتب النص بالأسفل.';
+                }
+            }
+        }
+
+        // التعرف الصوتي المباشر عبر Web Speech API أثناء تشغيل الفيديو
+        let speechRecInstance = null;
+        let isLiveRecognizing = false;
+
+        function toggleLiveSpeechRecognitionForActiveSlide() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const statusEl = document.getElementById('speechExtractionStatus');
+            const btn = document.getElementById('liveMicSpeechRecognitionBtn');
+
+            if (!SpeechRecognition) {
+                if (statusEl) {
+                    statusEl.textContent = 'متصفحك لا يدعم التفريغ الصوتي التلقائي، يمكنك كتابة الكابشن يدوياً بالأسفل.';
+                }
+                showToast('يرجى استخدام متصفح Google Chrome لتفعيل الكتابة الصوتية التلقائية، أو اكتب الكابشن في المربع مباشرة.');
+                return;
+            }
+
+            if (isLiveRecognizing && speechRecInstance) {
+                try { speechRecInstance.stop(); } catch (e) {}
+                isLiveRecognizing = false;
+                if (btn) btn.innerHTML = '<i class="fa-solid fa-microphone-lines ml-1"></i>استماع وكتابة صوتية مباشرة';
+                return;
+            }
+
+            try {
+                speechRecInstance = new SpeechRecognition();
+                speechRecInstance.lang = document.getElementById('speechLangSelect')?.value || 'ar-SY';
+                speechRecInstance.continuous = true;
+                speechRecInstance.interimResults = true;
+
+                speechRecInstance.onstart = () => {
+                    isLiveRecognizing = true;
+                    if (statusEl) statusEl.textContent = '🎙️ جاري سماع الفيديو وكتابة الكابشن تلقائياً بالمنتصف...';
+                    if (btn) btn.innerHTML = '<i class="fa-solid fa-stop ml-1 text-rose-400"></i>إيقاف الاستماع التلقائي';
+                    const slide = slides[activeSlideIndex];
+                    if (slide) {
+                        slide.captionEnabled = true;
+                        if (slide.mediaType === 'video' && slide.mediaElem) {
+                            slide.videoMuted = false;
+                            slide.mediaElem.muted = false;
+                            currentTime = 0;
+                            for (let i = 0; i < activeSlideIndex; i++) {
+                                currentTime += Math.max(0.5, Number(slides[i].duration) || 5);
+                            }
+                            if (!isPlaying) {
+                                startPlayback();
+                            }
+                        }
+                    }
+                };
+
+                speechRecInstance.onresult = (event) => {
+                    let transcript = '';
+                    for (let i = 0; i < event.results.length; i++) {
+                        transcript += event.results[i][0].transcript + ' ';
+                    }
+                    const cleanTranscript = transcript.trim();
+                    const slide = slides[activeSlideIndex];
+                    if (slide && cleanTranscript) {
+                        slide.captionEnabled = true;
+                        slide.captionMain = cleanTranscript;
+                        if (slide.mediaType === 'video' && slide.mediaElem) {
+                            const curVidSec = slide.mediaElem.currentTime || 0;
+                            if (!Array.isArray(slide.captionSegments) || slide.captionSegments.length === 0) {
+                                slide.captionSegments = [{ start: slide.trimStart || 0, end: slide.trimEnd || 5, text: cleanTranscript }];
+                            } else {
+                                // وضع النص في المقطع الزمني الحالي أو الأول
+                                const activeSeg = slide.captionSegments.find(sg => curVidSec >= sg.start && curVidSec <= sg.end) || slide.captionSegments[0];
+                                activeSeg.text = cleanTranscript;
+                            }
+                        }
+                        syncCaptionPanelFromActiveSlide();
+                        scheduleSingleFrameRender();
+                    }
+                };
+
+                speechRecInstance.onerror = (ev) => {
+                    isLiveRecognizing = false;
+                    if (btn) btn.innerHTML = '<i class="fa-solid fa-microphone-lines ml-1"></i>استماع وكتابة صوتية مباشرة';
+                    if (statusEl) {
+                        statusEl.textContent = ev.error === 'not-allowed'
+                            ? 'يرجى السماح بالمايكروفون في المتصفح لالتقاط كلام الفيديو، أو اكتب الكابشن يدوياً.'
+                            : 'اكتب الكابشن في الحقل بالأسفل ليظهر فوراً في المنتصف.';
+                    }
+                };
+
+                speechRecInstance.onend = () => {
+                    isLiveRecognizing = false;
+                    if (btn) btn.innerHTML = '<i class="fa-solid fa-microphone-lines ml-1"></i>استماع وكتابة صوتية مباشرة';
+                };
+
+                speechRecInstance.start();
+            } catch (e) {}
+        }
+
+        function syncCaptionPanelFromActiveSlide() {
+            const slide = slides[activeSlideIndex];
+            if (!slide) return;
+
+            const btnEn = document.getElementById('btnCaptionEnable');
+            const btnDis = document.getElementById('btnCaptionDisable');
+            const mainInp = document.getElementById('captionMainTextInput');
+            const subInp = document.getElementById('captionSpeakerSubInput');
+
+            if (slide.captionEnabled) {
+                if (btnEn) btnEn.className = 'px-3 py-1 rounded-lg text-xs font-black transition bg-indigo-600 text-white shadow';
+                if (btnDis) btnDis.className = 'px-3 py-1 rounded-lg text-xs font-black transition text-slate-400 hover:text-white';
+            } else {
+                if (btnDis) btnDis.className = 'px-3 py-1 rounded-lg text-xs font-black transition bg-rose-600 text-white shadow';
+                if (btnEn) btnEn.className = 'px-3 py-1 rounded-lg text-xs font-black transition text-slate-400 hover:text-white';
+            }
+
+            if (mainInp && document.activeElement !== mainInp) {
+                mainInp.value = slide.captionMain || '';
+            }
+            if (subInp && document.activeElement !== subInp) {
+                subInp.value = slide.captionSub || '';
+            }
+
+            renderCaptionWordChips();
+            renderCaptionSegmentsTimeline();
+        }
+
+        function renderCaptionWordChips() {
+            const container = document.getElementById('captionWordChipsContainer');
+            if (!container) return;
+            const slide = slides[activeSlideIndex];
+            if (!slide) {
+                container.innerHTML = '';
+                return;
+            }
+            const raw = (slide.captionMain || '').trim();
+            if (!raw) {
+                container.innerHTML = '<span class="text-[11px] text-slate-500">اكتب نص الكابشن أو استخرجه من الفيديو لتظهر الكلمات هنا للتمييز...</span>';
+                return;
+            }
+
+            const tokens = raw.split(/\s+/).filter(Boolean);
+            container.innerHTML = '';
+            tokens.forEach((tok, idx) => {
+                const isHl = tok.startsWith('*') && tok.endsWith('*') && tok.length > 2;
+                const clean = isHl ? tok.slice(1, -1) : tok;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `word-chip px-2 py-0.5 rounded-lg text-[11px] font-bold border ${isHl ? 'highlighted' : 'bg-slate-900 text-slate-200 border-slate-700 hover:border-amber-400'}`;
+                btn.textContent = clean;
+                btn.addEventListener('click', () => {
+                    toggleCaptionWordHighlightInstant(idx);
+                });
+                container.appendChild(btn);
+            });
+        }
+
+        function toggleCaptionWordHighlightInstant(wordIdx) {
+            const slide = slides[activeSlideIndex];
+            if (!slide) return;
+            const tokens = (slide.captionMain || '').trim().split(/\s+/).filter(Boolean);
+            if (wordIdx < 0 || wordIdx >= tokens.length) return;
+
+            const tok = tokens[wordIdx];
+            if (tok.startsWith('*') && tok.endsWith('*') && tok.length > 2) {
+                tokens[wordIdx] = tok.slice(1, -1);
+            } else {
+                tokens[wordIdx] = `*${tok}*`;
+            }
+            slide.captionMain = tokens.join(' ');
+            slide.captionEnabled = true;
+
+            if (slide.captionSegments && slide.captionSegments.length > 0) {
+                slide.captionSegments[0].text = slide.captionMain;
+            }
+
+            const mainInp = document.getElementById('captionMainTextInput');
+            if (mainInp) mainInp.value = slide.captionMain;
+
+            renderCaptionWordChips();
+            renderCaptionSegmentsTimeline();
+            scheduleSingleFrameRender();
+        }
+
+        function renderCaptionSegmentsTimeline() {
+            const box = document.getElementById('captionSegmentsTimelineBox');
+            const list = document.getElementById('captionSegmentsList');
+            if (!box || !list) return;
+            const slide = slides[activeSlideIndex];
+            if (!slide || slide.mediaType !== 'video') {
+                box.classList.add('hidden');
+                return;
+            }
+            box.classList.remove('hidden');
+            const segs = Array.isArray(slide.captionSegments) ? slide.captionSegments : [];
+            if (segs.length === 0) {
+                list.innerHTML = '<span class="text-[10px] text-slate-400">يتم عرض الكابشن الموحد طوال الفيديو، أو اضغط (+ مقطع كابشن زمني) لتقسيم الكلام على ثواني الفيديو.</span>';
+                return;
+            }
+
+            list.innerHTML = '';
+            segs.forEach((seg, sIdx) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-[10px]';
+
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'text-amber-400 font-mono font-bold';
+                timeSpan.textContent = `${Number(seg.start || 0).toFixed(1)}s-${Number(seg.end || 0).toFixed(1)}s:`;
+
+                const inp = document.createElement('input');
+                inp.type = 'text';
+                inp.value = seg.text || '';
+                inp.placeholder = 'اكتب كابشن هذا المقطع الزمني...';
+                inp.className = 'bg-slate-950 border border-slate-800 rounded px-1.5 py-0.5 text-white text-[10px] w-48 focus:border-amber-400 focus:outline-none';
+                inp.addEventListener('input', function () {
+                    seg.text = this.value;
+                    slide.captionEnabled = true;
+                    if (sIdx === 0 || !slide.captionMain) {
+                        slide.captionMain = this.value;
+                        const mainInp = document.getElementById('captionMainTextInput');
+                        if (mainInp && document.activeElement !== mainInp) mainInp.value = this.value;
+                        renderCaptionWordChips();
+                    }
+                    syncCaptionPanelFromActiveSlide();
+                    scheduleSingleFrameRender();
+                });
+
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.className = 'text-rose-400 hover:text-rose-300 px-1';
+                delBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                delBtn.addEventListener('click', () => {
+                    slide.captionSegments.splice(sIdx, 1);
+                    renderCaptionSegmentsTimeline();
+                    scheduleSingleFrameRender();
+                });
+
+                row.appendChild(timeSpan);
+                row.appendChild(inp);
+                row.appendChild(delBtn);
+                list.appendChild(row);
+            });
+        }
+
+        /********************************************************************
+         * 8. أداة قص الفيديو الاحترافية (Video Trimmer)
+         ********************************************************************/
+        function syncActiveVideoTrimPanel() {
+            const panel = document.getElementById('videoTrimmerPanel');
+            if (!panel) return;
+            const slide = slides[activeSlideIndex];
+            if (!slide || slide.mediaType !== 'video') {
+                panel.classList.add('hidden');
+                return;
+            }
+            panel.classList.remove('hidden');
+
+            const maxDur = Math.max(1, slide.naturalVideoDuration || 10);
+            const tStart = Math.max(0, Math.min(slide.trimStart || 0, maxDur - 0.3));
+            const tEnd = Math.max(tStart + 0.3, Math.min(slide.trimEnd || maxDur, maxDur));
+
+            const startSlider = document.getElementById('videoTrimStartSlider');
+            const endSlider = document.getElementById('videoTrimEndSlider');
+            const startNum = document.getElementById('videoTrimStartNum');
+            const endNum = document.getElementById('videoTrimEndNum');
+            const sumEl = document.getElementById('videoTrimDurationSummary');
+
+            if (startSlider) { startSlider.max = maxDur; startSlider.value = tStart; }
+            if (endSlider) { endSlider.max = maxDur; endSlider.value = tEnd; }
+            if (startNum) { startNum.max = maxDur; startNum.value = tStart.toFixed(1); }
+            if (endNum) { endNum.max = maxDur; endNum.value = tEnd.toFixed(1); }
+            if (sumEl) {
+                sumEl.textContent = `المقطع: ${tStart.toFixed(1)}s إلى ${tEnd.toFixed(1)}s (المدة: ${(tEnd - tStart).toFixed(1)}s)`;
+            }
+        }
+
+        function applyVideoTrimChange(newStart, newEnd) {
+            const slide = slides[activeSlideIndex];
+            if (!slide || slide.mediaType !== 'video') return;
+            const maxDur = Math.max(1, slide.naturalVideoDuration || 10);
+            let s = Math.max(0, Math.min(newStart, maxDur - 0.4));
+            let e = Math.max(s + 0.4, Math.min(newEnd, maxDur));
+
+            slide.trimStart = Number(s.toFixed(1));
+            slide.trimEnd = Number(e.toFixed(1));
+            slide.duration = Number((slide.trimEnd - slide.trimStart).toFixed(1));
+
+            if (slide.mediaElem) {
+                slide.mediaElem.currentTime = slide.trimStart;
+            }
+
+            syncActiveVideoTrimPanel();
+            renderSlidesCardsList();
+            updateTimecodeAndScrubberUI();
+            scheduleSingleFrameRender();
+        }
+
+        /********************************************************************
+         * 9. التمييز الفوري المباشر لنص التقرير الرئيسي (Zero-Lag Highlight)
+         ********************************************************************/
+        function syncActiveSlideMainTextEditor() {
+            const slide = slides[activeSlideIndex];
+            const badge = document.getElementById('activeSlideNumBadge');
+            const inp = document.getElementById('activeSlideMainTextInput');
+            if (badge) badge.textContent = String(activeSlideIndex + 1);
+            if (inp && slide && document.activeElement !== inp) {
+                inp.value = slide.text || '';
+            }
+        }
+
+        function renderInteractiveWordChips() {
+            const container = document.getElementById('mainTextWordChipsContainer');
+            if (!container) return;
+            const slide = slides[activeSlideIndex];
+            if (!slide) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const raw = (slide.text || '').trim();
+            if (!raw) {
+                container.innerHTML = '<span class="text-[11px] text-slate-500">اكتب نص التقرير لتظهر الكلمات هنا للتمييز الفوري...</span>';
+                return;
+            }
+
+            const tokens = raw.split(/\s+/).filter(Boolean);
+            container.innerHTML = '';
+            tokens.forEach((tok, idx) => {
+                const isHl = tok.startsWith('*') && tok.endsWith('*') && tok.length > 2;
+                const clean = isHl ? tok.slice(1, -1) : tok;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.id = `mainWordChip_${idx}`;
+                btn.className = `word-chip px-2.5 py-0.5 rounded-lg text-xs font-bold border ${isHl ? 'highlighted' : 'bg-slate-900 text-slate-200 border-slate-700 hover:border-amber-400'}`;
+                btn.textContent = clean;
+                btn.addEventListener('click', () => {
+                    toggleMainWordHighlightInstant(idx);
+                });
+                container.appendChild(btn);
+            });
+        }
+
+        function toggleMainWordHighlightInstant(wordIdx) {
+            const slide = slides[activeSlideIndex];
+            if (!slide) return;
+            const tokens = (slide.text || '').trim().split(/\s+/).filter(Boolean);
+            if (wordIdx < 0 || wordIdx >= tokens.length) return;
+
+            const tok = tokens[wordIdx];
+            const wasHl = tok.startsWith('*') && tok.endsWith('*') && tok.length > 2;
+            tokens[wordIdx] = wasHl ? tok.slice(1, -1) : `*${tok}*`;
+            slide.text = tokens.join(' ');
+
+            // تحديث فوري للزر نفسه بدون إعادة بناء القائمة لمنع أي بطء
+            const chipBtn = document.getElementById(`mainWordChip_${wordIdx}`);
+            if (chipBtn) {
+                chipBtn.classList.toggle('highlighted', !wasHl);
+                if (wasHl) {
+                    chipBtn.className = 'word-chip px-2.5 py-0.5 rounded-lg text-xs font-bold border bg-slate-900 text-slate-200 border-slate-700 hover:border-amber-400';
+                }
+            }
+
+            syncActiveSlideMainTextEditor();
+            const cardPreview = document.getElementById(`slideCardTextPreview_${activeSlideIndex}`);
+            if (cardPreview) cardPreview.textContent = slide.text;
+            scheduleSingleFrameRender();
+        }
+
+        function highlightSelectedTextInTextarea(textareaEl, onUpdated) {
+            if (!textareaEl) return;
+            const start = textareaEl.selectionStart;
+            const end = textareaEl.selectionEnd;
+            if (start === end) {
+                showToast('حدد كلمة أو جملة بالماوس أولاً ثم اضغط زر التمييز، أو اضغط على الكلمات في شريط التمييز الفوري.');
+                return;
+            }
+            const val = textareaEl.value;
+            const selected = val.substring(start, end).trim();
+            if (!selected) return;
+
+            const wrapped = selected
+                .split(/\s+/)
+                .map(w => (w.startsWith('*') && w.endsWith('*')) ? w.slice(1, -1) : `*${w}*`)
+                .join(' ');
+
+            textareaEl.value = val.substring(0, start) + wrapped + val.substring(end);
+            if (typeof onUpdated === 'function') onUpdated(textareaEl.value);
+        }
+
+        /********************************************************************
+         * 10. رفع الصور والفيديوهات (حتى 200MB) وإدارة بطاقات الشرائح
+         ********************************************************************/
+        async function attachMediaFileToSlide(slideIndex, file) {
+            if (!file || slideIndex < 0 || slideIndex >= slides.length) return;
+            const slide = slides[slideIndex];
+
+            const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|mov|mkv)$/i.test(file.name);
+            if (isVideo && file.size > MAX_VIDEO_BYTES) {
+                showToast(`حجم الفيديو (${(file.size / (1024 * 1024)).toFixed(1)}MB) يتجاوز الحد الأقصى المسموح به (200 ميغابايت)!`);
+                return;
+            }
+
+            const objUrl = URL.createObjectURL(file);
+            slide.mediaFileObj = file;
+            slide.mediaFileName = file.name;
+            slide.scale = 1;
+            slide.panX = 0;
+            slide.panY = 0;
+
+            if (isVideo) {
+                if (slide.mediaType === 'video' && slide.mediaElem) {
+                    try { slide.mediaElem.pause(); slide.mediaElem.remove(); } catch (e) {}
+                }
+                const vid = document.createElement('video');
+                vid.src = objUrl;
+                vid.playsInline = true;
+                vid.preload = 'auto';
+                vid.crossOrigin = 'anonymous';
+                vid.muted = Boolean(slide.videoMuted);
+                document.getElementById('hiddenVideoPool').appendChild(vid);
+
+                await new Promise((resolve) => {
+                    vid.onloadedmetadata = () => resolve();
+                    vid.onerror = () => resolve();
+                    setTimeout(resolve, 2500);
+                });
+
+                const natDur = Math.max(1, Number((vid.duration || 5).toFixed(1)));
+                slide.mediaType = 'video';
+                slide.mediaElem = vid;
+                slide.naturalVideoDuration = natDur;
+                slide.trimStart = 0;
+                slide.trimEnd = natDur;
+                slide.duration = natDur;
+
+                connectVideoElementToAudioGraph(vid);
+
+                // توليد صورة مصغرة للفيديو
+                vid.currentTime = Math.min(0.5, natDur * 0.2);
+                await new Promise(r => {
+                    vid.onseeked = r;
+                    setTimeout(r, 400);
+                });
+                try {
+                    const tc = document.createElement('canvas');
+                    tc.width = 160;
+                    tc.height = 120;
+                    tc.getContext('2d').drawImage(vid, 0, 0, 160, 120);
+                    slide.mediaThumbUrl = tc.toDataURL('image/jpeg', 0.7);
+                } catch (e) {
+                    slide.mediaThumbUrl = '';
+                }
+                vid.currentTime = 0;
+
+                // استخراج الكابشن التلقائي للفيديو إذا كان الخيار مفعلاً
+                const autoCapToggle = document.getElementById('autoTranscribeOnUploadToggle');
+                if (!autoCapToggle || autoCapToggle.checked) {
+                    await autoAnalyzeAndExtractVideoCaption(slide, file);
+                }
+            } else {
+                const img = new Image();
+                img.src = objUrl;
+                await new Promise((resolve) => {
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                });
+                slide.mediaType = 'image';
+                slide.mediaElem = img;
+                slide.mediaThumbUrl = objUrl;
+            }
+
+            activeSlideIndex = slideIndex;
+            renderSlidesCardsList();
+            syncActiveSlideMainTextEditor();
+            renderInteractiveWordChips();
+            syncCaptionPanelFromActiveSlide();
+            syncActiveVideoTrimPanel();
+            updateTimecodeAndScrubberUI();
+            scheduleSingleFrameRender();
+        }
+
+        function renderSlidesCardsList() {
+            const container = document.getElementById('slidesCardsContainer');
+            const countLbl = document.getElementById('slidesCountLabel');
+            if (countLbl) countLbl.textContent = String(slides.length);
+            if (!container) return;
+
+            container.innerHTML = '';
+            slides.forEach((slide, idx) => {
+                const isAct = idx === activeSlideIndex;
+                const card = document.createElement('div');
+                card.id = `slideCard_${idx}`;
+                card.className = `slide-card border rounded-xl p-2.5 transition cursor-pointer ${
+                    isAct ? 'active border-blue-500 bg-blue-950/20' : 'border-slate-800 bg-slate-950 hover:border-slate-700'
+                }`;
+
+                card.addEventListener('click', () => {
+                    if (activeSlideIndex !== idx) {
+                        activeSlideIndex = idx;
+                        highlightActiveSlideCard();
+                        syncActiveSlideMainTextEditor();
+                        renderInteractiveWordChips();
+                        syncCaptionPanelFromActiveSlide();
+                        syncActiveVideoTrimPanel();
+                        seekTimelineToSlideStart(idx);
+                    }
+                });
+
+                const topRow = document.createElement('div');
+                topRow.className = 'flex flex-wrap items-center justify-between gap-2';
+
+                // اليمين: مصغرة الميديا + رقم الشريحة + النص
+                const rightInfo = document.createElement('div');
+                rightInfo.className = 'flex items-center gap-2.5 flex-1 min-w-[200px]';
+
+                const thumbBox = document.createElement('div');
+                thumbBox.className = 'w-14 h-12 rounded-lg bg-slate-900 border border-slate-700 overflow-hidden flex items-center justify-center relative shrink-0';
+                if (slide.mediaThumbUrl) {
+                    const tImg = document.createElement('img');
+                    tImg.src = slide.mediaThumbUrl;
+                    tImg.className = 'w-full h-full object-cover';
+                    thumbBox.appendChild(tImg);
+                } else {
+                    thumbBox.innerHTML = '<i class="fa-solid fa-image text-slate-600 text-sm"></i>';
+                }
+                if (slide.mediaType === 'video') {
+                    const vBadge = document.createElement('span');
+                    vBadge.className = 'absolute bottom-0.5 right-0.5 bg-blue-600 text-white text-[9px] px-1 rounded font-bold';
+                    vBadge.textContent = 'فيديو';
+                    thumbBox.appendChild(vBadge);
+                }
+
+                const textCol = document.createElement('div');
+                textCol.className = 'flex-1 overflow-hidden';
+                const titleLine = document.createElement('div');
+                titleLine.className = 'flex items-center gap-1.5 text-xs font-black text-white';
+                titleLine.innerHTML = `<span class="text-blue-400">#${idx + 1}</span> <span>(${slide.duration} ث)</span>`;
+                if (slide.captionEnabled) {
+                    titleLine.innerHTML += `<span class="text-[9px] bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 px-1.5 py-0.2 rounded">كابشن مفعّل</span>`;
+                }
+
+                const textPrev = document.createElement('p');
+                textPrev.id = `slideCardTextPreview_${idx}`;
+                textPrev.className = 'text-[11px] text-slate-300 truncate mt-0.5';
+                textPrev.textContent = slide.text || 'بدون نص...';
+
+                textCol.appendChild(titleLine);
+                textCol.appendChild(textPrev);
+                rightInfo.appendChild(thumbBox);
+                rightInfo.appendChild(textCol);
+
+                // اليسار: أزرار إضافة صورة أو فيديو + الصوت + قص + المدة + حذف
+                const actionsRow = document.createElement('div');
+                actionsRow.className = 'flex flex-wrap items-center gap-1.5';
+                actionsRow.addEventListener('click', e => e.stopPropagation());
+
+                // زر إضافة صورة أو فيديو داخل الشريحة
+                const uploadLabel = document.createElement('label');
+                uploadLabel.className = 'cursor-pointer px-2.5 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-300 text-[11px] font-bold transition';
+                uploadLabel.innerHTML = '<i class="fa-solid fa-camera ml-1"></i>إضافة صورة أو فيديو';
+                const fileInp = document.createElement('input');
+                fileInp.type = 'file';
+                fileInp.accept = 'image/*,video/*';
+                fileInp.className = 'hidden';
+                fileInp.addEventListener('change', (ev) => {
+                    const f = ev.target.files?.[0];
+                    if (f) attachMediaFileToSlide(idx, f);
+                });
+                uploadLabel.appendChild(fileInp);
+                actionsRow.appendChild(uploadLabel);
+
+                // أزرار خاصة بالفيديو (صوت الفيديو + قص الفيديو + استخراج الكابشن)
+                if (slide.mediaType === 'video') {
+                    const muteBtn = document.createElement('button');
+                    muteBtn.type = 'button';
+                    muteBtn.className = `px-2 py-1 rounded-lg text-[10px] font-bold border ${
+                        slide.videoMuted ? 'bg-rose-950/60 border-rose-700 text-rose-300' : 'bg-emerald-950/60 border-emerald-700 text-emerald-300'
+                    }`;
+                    muteBtn.innerHTML = slide.videoMuted ? '<i class="fa-solid fa-volume-xmark ml-1"></i>صوت الفيديو مكتوم' : '<i class="fa-solid fa-volume-high ml-1"></i>صوت الفيديو مفعّل';
+                    muteBtn.addEventListener('click', () => {
+                        slide.videoMuted = !slide.videoMuted;
+                        if (slide.mediaElem) slide.mediaElem.muted = slide.videoMuted;
+                        renderSlidesCardsList();
+                        drawAudioEnvelopeVisualizer(currentTime);
+                    });
+                    actionsRow.appendChild(muteBtn);
+
+                    const trimBtn = document.createElement('button');
+                    trimBtn.type = 'button';
+                    trimBtn.className = 'px-2 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-[10px] font-bold';
+                    trimBtn.innerHTML = '<i class="fa-solid fa-scissors ml-1"></i>قص الفيديو';
+                    trimBtn.addEventListener('click', () => {
+                        activeSlideIndex = idx;
+                        highlightActiveSlideCard();
+                        syncActiveVideoTrimPanel();
+                        document.getElementById('videoTrimmerPanel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    });
+                    actionsRow.appendChild(trimBtn);
+                }
+
+                // إدخال مدة الشريحة
+                const durInput = document.createElement('input');
+                durInput.type = 'number';
+                durInput.min = '1';
+                durInput.max = '120';
+                durInput.step = '0.5';
+                durInput.value = slide.duration;
+                durInput.title = 'مدة الشريحة بالثواني';
+                durInput.className = 'w-14 bg-slate-900 border border-slate-700 rounded-lg px-1.5 py-1 text-center text-xs font-mono text-amber-400';
+                durInput.addEventListener('change', function () {
+                    slide.duration = Math.max(1, parseFloat(this.value) || 5);
+                    updateTimecodeAndScrubberUI();
+                    drawAudioEnvelopeVisualizer(currentTime);
+                });
+                actionsRow.appendChild(durInput);
+
+                // حذف الشريحة
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.className = 'px-2 py-1 rounded-lg bg-rose-950/60 hover:bg-rose-900 text-rose-300 text-xs';
+                delBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+                delBtn.addEventListener('click', () => {
+                    if (slides.length <= 1) {
+                        showToast('يجب أن يحتوي التقرير على شريحة واحدة على الأقل.');
+                        return;
+                    }
+                    if (slide.mediaType === 'video' && slide.mediaElem) {
+                        try { slide.mediaElem.pause(); slide.mediaElem.remove(); } catch (e) {}
+                    }
+                    slides.splice(idx, 1);
+                    if (activeSlideIndex >= slides.length) activeSlideIndex = slides.length - 1;
+                    renderSlidesCardsList();
+                    syncActiveSlideMainTextEditor();
+                    renderInteractiveWordChips();
+                    syncCaptionPanelFromActiveSlide();
+                    syncActiveVideoTrimPanel();
+                    updateTimecodeAndScrubberUI();
+                    scheduleSingleFrameRender();
+                });
+                actionsRow.appendChild(delBtn);
+
+                topRow.appendChild(rightInfo);
+                topRow.appendChild(actionsRow);
+                card.appendChild(topRow);
+                container.appendChild(card);
+            });
+        }
+
+        function highlightActiveSlideCard() {
+            slides.forEach((_, idx) => {
+                const c = document.getElementById(`slideCard_${idx}`);
+                if (!c) return;
+                if (idx === activeSlideIndex) {
+                    c.classList.add('active', 'border-blue-500', 'bg-blue-950/20');
+                } else {
+                    c.classList.remove('active', 'border-blue-500', 'bg-blue-950/20');
+                }
+            });
+        }
+
+        /********************************************************************
+         * 11. محرك الرسم السريع (60FPS Canvas Renderer: Media + Template + Report Text + Center Caption)
+         ********************************************************************/
+        function getTotalDuration() {
+            return slides.reduce((acc, s) => acc + Math.max(0.5, Number(s.duration) || 5), 0);
+        }
+
+        function getSlideAtTime(sec) {
+            let elapsed = 0;
+            for (let i = 0; i < slides.length; i++) {
+                const dur = Math.max(0.5, Number(slides[i].duration) || 5);
+                if (sec <= elapsed + dur || i === slides.length - 1) {
+                    return {
+                        slide: slides[i],
+                        index: i,
+                        localTime: Math.max(0, sec - elapsed),
+                        duration: dur
+                    };
+                }
+                elapsed += dur;
+            }
+            return { slide: slides[0], index: 0, localTime: 0, duration: 5 };
+        }
+
+        function seekTimelineToSlideStart(slideIdx) {
+            let t = 0;
+            for (let i = 0; i < slideIdx && i < slides.length; i++) {
+                t += Math.max(0.5, Number(slides[i].duration) || 5);
+            }
+            currentTime = t;
+            syncVideoElementsToTime(true);
+            updateTimecodeAndScrubberUI();
+            scheduleSingleFrameRender();
+        }
+
+        function syncVideoElementsToTime(forceSeek = false) {
+            const { slide, localTime } = getSlideAtTime(currentTime);
+            slides.forEach((s) => {
+                if (s.mediaType !== 'video' || !s.mediaElem) return;
+                const vid = s.mediaElem;
+                if (s === slide) {
+                    const targetVidTime = (s.trimStart || 0) + localTime;
+                    const clampedVidTime = Math.min(s.trimEnd || vid.duration || 10, targetVidTime);
+                    vid.muted = Boolean(s.videoMuted);
+                    if (isPlaying) {
+                        if (vid.paused) vid.play().catch(() => {});
+                        if (Math.abs(vid.currentTime - clampedVidTime) > 0.35) {
+                            try { vid.currentTime = clampedVidTime; } catch (e) {}
+                        }
+                    } else if (forceSeek) {
+                        try { vid.currentTime = clampedVidTime; } catch (e) {}
+                    }
+                } else {
+                    if (!vid.paused) {
+                        try { vid.pause(); } catch (e) {}
+                    }
+                }
+            });
+        }
+
+        let singleFramePending = false;
+        function scheduleSingleFrameRender() {
+            if (isPlaying || singleFramePending) return;
+            singleFramePending = true;
+            requestAnimationFrame(() => {
+                singleFramePending = false;
+                renderMontageFrame(currentTime);
+            });
+        }
+
+        function drawMediaInViewport(slide, localTime, duration, viewportHeight) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(0, 0, W, viewportHeight);
+            ctx.clip();
+
+            if (slide && slide.mediaElem && (slide.mediaType === 'image' || slide.mediaType === 'video')) {
+                const el = slide.mediaElem;
+                const iw = el.videoWidth || el.naturalWidth || W;
+                const ih = el.videoHeight || el.naturalHeight || viewportHeight;
+
+                // زوم سينمائي هادئ للصور (Ken Burns)
+                const kenBurns = slide.mediaType === 'image' ? (1 + (localTime / Math.max(1, duration)) * 0.06) : 1;
+                const userScale = (slide.scale || 1) * kenBurns;
+
+                const baseScale = Math.max(W / Math.max(1, iw), viewportHeight / Math.max(1, ih));
+                const drawW = iw * baseScale * userScale;
+                const drawH = ih * baseScale * userScale;
+
+                const cx = W / 2 + (slide.panX || 0);
+                const cy = viewportHeight / 2 + (slide.panY || 0);
+
+                try {
+                    ctx.drawImage(el, cx - drawW / 2, cy - drawH / 2, drawW, drawH);
+                } catch (e) {}
+            } else {
+                const bgGrad = ctx.createLinearGradient(0, 0, 0, viewportHeight);
+                bgGrad.addColorStop(0, '#0f172a');
+                bgGrad.addColorStop(1, '#1e3a8a');
+                ctx.fillStyle = bgGrad;
+                ctx.fillRect(0, 0, W, viewportHeight);
+            }
+            ctx.restore();
+        }
+
+        function computeWrappedTokensLines(rawText, fontSize, maxWidth) {
+            const cacheKey = `${rawText}__${fontSize}__${maxWidth}`;
+            if (textWrapCache.has(cacheKey)) return textWrapCache.get(cacheKey);
+
+            ctx.font = `bold ${fontSize}px 'NizarBBCKurdish', 'Cairo', sans-serif`;
+            const paragraphs = (rawText || '').split('\n');
+            const lines = [];
+
+            paragraphs.forEach(p => {
+                const tokens = p.trim().split(/\s+/).filter(Boolean);
+                if (tokens.length === 0) return;
+                let currentLine = [];
+                let currentWidth = 0;
+                const spaceW = ctx.measureText(' ').width;
+
+                tokens.forEach(tok => {
+                    const isHl = tok.startsWith('*') && tok.endsWith('*') && tok.length > 2;
+                    const clean = isHl ? tok.slice(1, -1) : tok;
+                    const w = ctx.measureText(clean).width;
+                    if (currentLine.length > 0 && currentWidth + spaceW + w > maxWidth) {
+                        lines.push(currentLine);
+                        currentLine = [{ text: clean, highlighted: isHl, width: w }];
+                        currentWidth = w;
+                    } else {
+                        currentLine.push({ text: clean, highlighted: isHl, width: w });
+                        currentWidth += (currentLine.length > 1 ? spaceW : 0) + w;
+                    }
+                });
+                if (currentLine.length > 0) lines.push(currentLine);
+            });
+
+            if (textWrapCache.size > 250) textWrapCache.clear();
+            textWrapCache.set(cacheKey, lines);
+            return lines;
+        }
+
+        function drawHighlightedTextBlock(rawText, centerX, startY, fontSize, maxWidth) {
+            if (!rawText || !rawText.trim()) return;
+            const lines = computeWrappedTokensLines(rawText, fontSize, maxWidth);
+            ctx.save();
+            ctx.font = `bold ${fontSize}px 'NizarBBCKurdish', 'Cairo', sans-serif`;
+            ctx.textBaseline = 'middle';
+            const lineHeight = fontSize * 1.42;
+            const spaceW = ctx.measureText(' ').width;
+
+            lines.forEach((lineTokens, lIdx) => {
+                const y = startY + lIdx * lineHeight;
+                const totalLineW = lineTokens.reduce((sum, t, i) => sum + t.width + (i > 0 ? spaceW : 0), 0);
+                // الرسم من اليمين إلى اليسار للعربية
+                let cursorRightX = centerX + totalLineW / 2;
+
+                lineTokens.forEach((tok) => {
+                    const wordCenterX = cursorRightX - tok.width / 2;
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowOffsetY = 3;
+                    ctx.fillStyle = tok.highlighted ? '#FFD700' : '#FFFFFF';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(tok.text, wordCenterX, y);
+                    cursorRightX -= (tok.width + spaceW);
+                });
+            });
+            ctx.restore();
+        }
+
+        function drawCenterTransparentCaption(slide, localTime) {
+            if (!slide || !slide.captionEnabled) return;
+
+            // اختيار نص المقطع الزمني المناسب لثانية الفيديو الحالية إن وجد، وإلا استخدام النص الرئيسي للكابشن
+            let activeCaptionText = (slide.captionMain || '').trim();
+            if (slide.mediaType === 'video' && Array.isArray(slide.captionSegments) && slide.captionSegments.length > 0) {
+                const vidSec = (slide.trimStart || 0) + localTime;
+                const matched = slide.captionSegments.find(seg => vidSec >= seg.start && vidSec <= seg.end && seg.text && seg.text.trim());
+                if (matched) {
+                    activeCaptionText = matched.text.trim();
+                } else {
+                    const anyNonEmpty = slide.captionSegments.find(seg => seg.text && seg.text.trim());
+                    if (!activeCaptionText && anyNonEmpty) {
+                        activeCaptionText = anyNonEmpty.text.trim();
+                    }
+                }
+            }
+            const hasSub = Boolean(slide.captionSub && slide.captionSub.trim());
+            if (!activeCaptionText && !hasSub) return;
+
+            const capFontSize = 40;
+            const maxBoxWidth = W - 120;
+            const lines = activeCaptionText ? computeWrappedTokensLines(activeCaptionText, capFontSize, maxBoxWidth - 60) : [];
+
+            const lineHeight = capFontSize * 1.4;
+            const subHeight = hasSub ? 40 : 0;
+            const padY = 24;
+            const boxH = Math.max(76, lines.length * lineHeight + subHeight + padY * 2);
+            const boxW = Math.min(maxBoxWidth, W - 100);
+            const rawBoxX = (W - boxW) / 2 + (captionPosX || 0);
+            const boxX = Math.max(20, Math.min(W - boxW - 20, rawBoxX));
+            const boxY = Math.max(60, Math.min(H - boxH - 60, captionPosY - boxH / 2));
+            const boxCenterX = boxX + boxW / 2;
+
+            // حفظ حدود الكابشن لإمكانية التقاطه وسحبه بالماوس مباشرة على المعاينة
+            lastRenderedCaptionBounds = { x: boxX, y: boxY, w: boxW, h: boxH };
+
+            ctx.save();
+            // خلفية شفافة داكنة أنيقة للكابشن مع إمكانية تحريكه أعلى أو أسفل أو بالمنتصف
+            ctx.beginPath();
+            ctx.roundRect(boxX, boxY, boxW, boxH, 22);
+            ctx.fillStyle = `rgba(8, 15, 32, ${captionBgOpacity})`;
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+            ctx.stroke();
+
+            if (hasSub) {
+                ctx.font = `bold 25px 'NizarBBCKurdish', 'Cairo', sans-serif`;
+                ctx.fillStyle = '#38bdf8';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(slide.captionSub.trim(), boxCenterX, boxY + padY + 14);
+            }
+
+            if (lines.length > 0) {
+                const textStartY = boxY + padY + subHeight + lineHeight / 2;
+                drawHighlightedTextBlock(activeCaptionText, boxCenterX, textStartY, capFontSize, boxW - 55);
+            }
+            ctx.restore();
+        }
+
+        function renderMontageFrame(sec) {
+            ctx.clearRect(0, 0, W, H);
+            lastRenderedCaptionBounds = null;
+            const { slide, localTime, duration } = getSlideAtTime(sec);
+
+            if (useTemplateOverlay && uploadedTemplateImg) {
+                const viewportH = Math.round(H * mediaViewportRatio);
+                if (templateBlendMode === 'underlay') {
+                    // رسم القالب أولاً ثم رسم الصورة/الفيديو في النافذة العلوية مع تدرج دمج ناعم
+                    ctx.drawImage(uploadedTemplateImg, 0, 0, W, H);
+                    drawMediaInViewport(slide, localTime, duration, viewportH);
+
+                    if (mediaFeatherPx > 5) {
+                        const grad = ctx.createLinearGradient(0, viewportH - mediaFeatherPx, 0, viewportH + 20);
+                        grad.addColorStop(0, 'rgba(255,255,255,0)');
+                        grad.addColorStop(0.55, 'rgba(225,235,248,0.85)');
+                        grad.addColorStop(1, 'rgba(30,85,175,1)');
+                        ctx.fillStyle = grad;
+                        ctx.fillRect(0, viewportH - mediaFeatherPx, W, mediaFeatherPx + 20);
+                    }
+                } else if (templateBlendMode === 'overlay') {
+                    drawMediaInViewport(slide, localTime, duration, Math.round(H * 0.75));
+                    if (processedTemplateCanvas) {
+                        ctx.drawImage(processedTemplateCanvas, 0, 0, W, H);
+                    } else {
+                        ctx.drawImage(uploadedTemplateImg, 0, 0, W, H);
+                    }
+                } else {
+                    drawMediaInViewport(slide, localTime, duration, H);
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'multiply';
+                    ctx.drawImage(uploadedTemplateImg, 0, 0, W, H);
+                    ctx.restore();
+                }
+            } else {
+                // بدون قالب: عرض الصورة أو الفيديو بكامل الشاشة مع تدرج سفلي أنيق لقراءة النص
+                drawMediaInViewport(slide, localTime, duration, H);
+                const darkGrad = ctx.createLinearGradient(0, H * 0.55, 0, H);
+                darkGrad.addColorStop(0, 'rgba(2, 6, 23, 0)');
+                darkGrad.addColorStop(0.5, 'rgba(2, 6, 23, 0.68)');
+                darkGrad.addColorStop(1, 'rgba(2, 6, 23, 0.92)');
+                ctx.fillStyle = darkGrad;
+                ctx.fillRect(0, H * 0.55, W, H * 0.45);
+            }
+
+            // رسم نص التقرير الرئيسي مع الكلمات المميزة بالأصفر
+            if (slide && slide.text) {
+                drawHighlightedTextBlock(slide.text, W / 2, mainTextPosY, mainTextFontSize, W - 120);
+            }
+
+            // رسم كابشن المتحدث بالمنتصف بخلفية شفافة
+            drawCenterTransparentCaption(slide, localTime);
+
+            updateTimecodeAndScrubberUI();
+        }
+
+        /********************************************************************
+         * 12. حلقة التشغيل، السحب بالماوس، والتصدير الكامل للفيديو
+         ********************************************************************/
+        function updateTimecodeAndScrubberUI() {
+            const total = getTotalDuration();
+            const cur = Math.min(currentTime, total);
+            const fmt = (s) => {
+                const mins = Math.floor(s / 60);
+                const secs = (s % 60).toFixed(1).padStart(4, '0');
+                return `${String(mins).padStart(2, '0')}:${secs}`;
+            };
+            const tc = document.getElementById('timecodeDisplay');
+            if (tc) tc.textContent = `${fmt(cur)} / ${fmt(total)}`;
+
+            const scrub = document.getElementById('timelineScrubber');
+            if (scrub) {
+                scrub.max = total;
+                scrub.value = cur;
+            }
+        }
+
+        async function startPlayback() {
+            const total = getTotalDuration();
+            if (currentTime >= total - 0.1) currentTime = 0;
+            isPlaying = true;
+            lastFrameTimestamp = performance.now();
+
+            const icon = document.getElementById('playPauseIcon');
+            if (icon) icon.className = 'fa-solid fa-pause text-sm';
+
+            await startBackgroundMusicPlayback(currentTime);
+            syncVideoElementsToTime(true);
+            rafId = requestAnimationFrame(playbackAnimationLoop);
+        }
+
+        function pausePlayback() {
+            isPlaying = false;
+            if (rafId) {
+                cancelAnimationFrame(rafId);
+                rafId = null;
+            }
+            const icon = document.getElementById('playPauseIcon');
+            if (icon) icon.className = 'fa-solid fa-play text-sm ml-0.5';
+
+            stopBackgroundMusicPlayback();
+            slides.forEach(s => {
+                if (s.mediaType === 'video' && s.mediaElem && !s.mediaElem.paused) {
+                    try { s.mediaElem.pause(); } catch (e) {}
+                }
+            });
+            scheduleSingleFrameRender();
+        }
+
+        function playbackAnimationLoop(now) {
+            if (!isPlaying) return;
+            const dt = Math.max(0, Math.min(0.1, (now - lastFrameTimestamp) / 1000));
+            lastFrameTimestamp = now;
+
+            const total = getTotalDuration();
+            currentTime += dt;
+
+            const { index } = getSlideAtTime(currentTime);
+            if (index !== activeSlideIndex) {
+                activeSlideIndex = index;
+                highlightActiveSlideCard();
+                syncActiveSlideMainTextEditor();
+                renderInteractiveWordChips();
+                syncCaptionPanelFromActiveSlide();
+                syncActiveVideoTrimPanel();
+            }
+
+            syncVideoElementsToTime(false);
+            applyRealtimeAudioFade(currentTime);
+            drawAudioEnvelopeVisualizer(currentTime);
+            renderMontageFrame(currentTime);
+
+            if (currentTime >= total) {
+                if (isRecordingExport) {
+                    finishVideoExportRecording();
+                } else {
+                    pausePlayback();
+                }
+                return;
+            }
+            rafId = requestAnimationFrame(playbackAnimationLoop);
+        }
+
+        // تحريك الكابشن أو الصورة/الفيديو داخل المعاينة بالماوس
+        let isDraggingCanvas = false;
+        let isDraggingCaptionBox = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+
+        function updateCaptionPositionUI(newY, newX = captionPosX) {
+            captionPosY = Math.max(110, Math.min(1290, Math.round(newY)));
+            captionPosX = Math.max(-320, Math.min(320, Math.round(newX)));
+            const slY = document.getElementById('captionPosYSlider');
+            const lblY = document.getElementById('captionPosYVal');
+            const slX = document.getElementById('captionPosXSlider');
+            if (slY) slY.value = captionPosY;
+            if (lblY) lblY.textContent = String(captionPosY);
+            if (slX) slX.value = captionPosX;
+            scheduleSingleFrameRender();
+        }
+
+        canvas.addEventListener('pointerdown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = W / Math.max(1, rect.width);
+            const scaleY = H / Math.max(1, rect.height);
+            const canvasX = (e.clientX - rect.left) * scaleX;
+            const canvasY = (e.clientY - rect.top) * scaleY;
+
+            // فحص ما إذا كان المستخدم يضغط فوق صندوق الكابشن لسحبه مباشرة
+            if (
+                lastRenderedCaptionBounds &&
+                canvasX >= lastRenderedCaptionBounds.x &&
+                canvasX <= lastRenderedCaptionBounds.x + lastRenderedCaptionBounds.w &&
+                canvasY >= lastRenderedCaptionBounds.y &&
+                canvasY <= lastRenderedCaptionBounds.y + lastRenderedCaptionBounds.h
+            ) {
+                isDraggingCaptionBox = true;
+                isDraggingCanvas = false;
+            } else {
+                isDraggingCaptionBox = false;
+                isDraggingCanvas = true;
+            }
+
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            canvas.setPointerCapture(e.pointerId);
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+            if (!isDraggingCanvas && !isDraggingCaptionBox) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = W / Math.max(1, rect.width);
+            const scaleY = H / Math.max(1, rect.height);
+            const dx = (e.clientX - dragStartX) * scaleX;
+            const dy = (e.clientY - dragStartY) * scaleY;
+
+            if (isDraggingCaptionBox) {
+                updateCaptionPositionUI(captionPosY + dy, captionPosX + dx);
+            } else if (isDraggingCanvas) {
+                const slide = slides[activeSlideIndex];
+                if (!slide) return;
+                slide.panX = (slide.panX || 0) + dx;
+                slide.panY = (slide.panY || 0) + dy;
+                scheduleSingleFrameRender();
+            }
+
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+        });
+
+        canvas.addEventListener('pointerup', () => {
+            isDraggingCanvas = false;
+            isDraggingCaptionBox = false;
+        });
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const slide = slides[activeSlideIndex];
+            if (!slide) return;
+            const delta = e.deltaY < 0 ? 0.06 : -0.06;
+            slide.scale = Math.max(0.5, Math.min(2.5, (slide.scale || 1) + delta));
+            const sc = document.getElementById('slideImageScale');
+            if (sc) sc.value = slide.scale;
+            scheduleSingleFrameRender();
+        }, { passive: false });
+
+        // تصدير الفيديو النهائي مع الصوت المدمج
+        let isRecordingExport = false;
+        let mediaRecorderInstance = null;
+        let recordedChunks = [];
+
+        async function exportFinalVideoReport() {
+            if (isRecordingExport) return;
+            pausePlayback();
+
+            const btn = document.getElementById('exportVideoBtn');
+            const progBox = document.getElementById('exportProgressBox');
+            const overlay = document.getElementById('recordingOverlayBadge');
+
+            try {
+                isRecordingExport = true;
+                recordedChunks = [];
+                if (btn) btn.disabled = true;
+                if (progBox) progBox.classList.remove('hidden');
+                if (overlay) { overlay.classList.remove('hidden'); overlay.classList.add('flex'); }
+
+                const actx = ensureAudioContext();
+                await actx.resume();
+
+                const canvasStream = canvas.captureStream(30);
+                const combinedStream = new MediaStream();
+                canvasStream.getVideoTracks().forEach(t => combinedStream.addTrack(t));
+                if (masterDestination && masterDestination.stream) {
+                    masterDestination.stream.getAudioTracks().forEach(t => combinedStream.addTrack(t));
+                }
+
+                const mimeCandidates = [
+                    'video/webm;codecs=vp9,opus',
+                    'video/webm;codecs=vp8,opus',
+                    'video/webm',
+                    'video/mp4'
+                ];
+                let chosenMime = '';
+                for (const m of mimeCandidates) {
+                    if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) {
+                        chosenMime = m;
+                        break;
+                    }
+                }
+
+                mediaRecorderInstance = chosenMime
+                    ? new MediaRecorder(combinedStream, { mimeType: chosenMime, videoBitsPerSecond: 8000000 })
+                    : new MediaRecorder(combinedStream);
+
+                mediaRecorderInstance.ondataavailable = (ev) => {
+                    if (ev.data && ev.data.size > 0) recordedChunks.push(ev.data);
+                };
+
+                mediaRecorderInstance.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: chosenMime || 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    const ext = (chosenMime && chosenMime.includes('mp4')) ? 'mp4' : 'webm';
+                    a.href = url;
+                    a.download = `IFAO_Report_${Date.now()}.${ext}`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+
+                    isRecordingExport = false;
+                    if (btn) btn.disabled = false;
+                    if (progBox) progBox.classList.add('hidden');
+                    if (overlay) { overlay.classList.add('hidden'); overlay.classList.remove('flex'); }
+                    showToast('تم تصدير وتحميل فيديو التقرير النهائي بنجاح!');
+                };
+
+                currentTime = 0;
+                activeSlideIndex = 0;
+                mediaRecorderInstance.start(200);
+                await startPlayback();
+
+                const exportTimer = setInterval(() => {
+                    if (!isRecordingExport) {
+                        clearInterval(exportTimer);
+                        return;
+                    }
+                    const total = getTotalDuration();
+                    const pct = Math.min(100, Math.round((currentTime / Math.max(1, total)) * 100));
+                    const bar = document.getElementById('exportProgressBar');
+                    const txt = document.getElementById('exportPercentLabel');
+                    if (bar) bar.style.width = pct + '%';
+                    if (txt) txt.textContent = pct + '%';
+                }, 150);
+            } catch (err) {
+                isRecordingExport = false;
+                if (btn) btn.disabled = false;
+                if (progBox) progBox.classList.add('hidden');
+                if (overlay) { overlay.classList.add('hidden'); overlay.classList.remove('flex'); }
+                showToast('حدث خطأ أثناء التصدير، يرجى المحاولة مرة أخرى.');
+            }
+        }
+
+        function finishVideoExportRecording() {
+            pausePlayback();
+            if (mediaRecorderInstance && mediaRecorderInstance.state !== 'inactive') {
+                try { mediaRecorderInstance.stop(); } catch (e) {}
+            }
+        }
+
+        /********************************************************************
+         * 13. استعادة الأصول المحفوظة وربط جميع أزرار الواجهة (DOM Events)
+         ********************************************************************/
+        async function restoreSavedAssetsFromDB() {
+            // استعادة القالب المحفوظ
+            const savedTplDataUrl = await loadAssetFromDB('customTemplateDataUrl');
+            if (savedTplDataUrl) {
+                const img = new Image();
+                img.src = savedTplDataUrl;
+                await new Promise(r => { img.onload = r; img.onerror = r; });
+                if (img.naturalWidth > 0) {
+                    uploadedTemplateImg = img;
+                    processedTemplateCanvas = buildTransparentTemplateCanvas(img);
+                    useTemplateOverlay = true;
+                    updateTemplateButtonsUI();
+                }
+            }
+
+            // استعادة الخط المحفوظ
+            const savedFontBuf = await loadAssetFromDB('customFontArrayBuffer');
+            if (savedFontBuf) {
+                try {
+                    const fontFace = new FontFace('NizarBBCKurdish', savedFontBuf);
+                    await fontFace.load();
+                    document.fonts.add(fontFace);
+                    textWrapCache.clear();
+                } catch (e) {}
+            }
+
+            // استعادة الموسيقى المحفوظة
+            const savedAudioBuf = await loadAssetFromDB('customAudioArrayBuffer');
+            if (savedAudioBuf) {
+                try {
+                    const actx = ensureAudioContext();
+                    customAudioBuffer = await actx.decodeAudioData(savedAudioBuf.slice(0));
+                    updateMainMusicStatusUI();
+                } catch (e) {}
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            checkExistingAuthSession();
+            initProjectsSystem();
+            updateTemplateButtonsUI();
+            updateMainMusicStatusUI();
+            updateAudioEnvelopeSettings();
+            await restoreSavedAssetsFromDB();
+            scheduleSingleFrameRender();
+
+            // أحداث تسجيل دخول المشتركين وإدارة المدير
+            document.getElementById('subscriberLoginForm')?.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const passVal = (document.getElementById('subscriberPasswordInput')?.value || '').trim();
+                const list = getSubscribersList();
+                const matched = list.find(s => s.pass === passVal);
+                const smartCheck = verifySmartSubscriberKey(passVal);
+                const errEl = document.getElementById('loginErrorMsg');
+
+                if (matched) {
+                    matched.uses = (matched.uses || 0) + 1;
+                    saveSubscribersList(list);
+                    try { sessionStorage.setItem(SESSION_AUTH_KEY, matched.name); } catch (err) {}
+                    document.getElementById('authLockScreen')?.classList.add('hidden');
+                    const badge = document.getElementById('activeSubscriberBadge');
+                    if (badge) badge.textContent = `المشترك: ${matched.name}`;
+                    showToast(`مرحباً بك "${matched.name}" في استوديو IFAO!`);
+                } else if (smartCheck && smartCheck.valid) {
+                    try { sessionStorage.setItem(SESSION_AUTH_KEY, `${smartCheck.name} (${smartCheck.remainingDays} يوم)`); } catch (err) {}
+                    document.getElementById('authLockScreen')?.classList.add('hidden');
+                    const badge = document.getElementById('activeSubscriberBadge');
+                    if (badge) badge.textContent = `المشترك: ${smartCheck.name} (متبقي ${smartCheck.remainingDays} يوم)`;
+                    showToast(`مرحباً بك "${smartCheck.name}" — اشتراكك فعال لـ ${smartCheck.remainingDays} يوم!`);
+                } else {
+                    if (errEl) {
+                        errEl.textContent = (smartCheck && smartCheck.reason)
+                            ? smartCheck.reason
+                            : 'كلمة السر أو كود الاشتراك غير صحيح! يرجى التواصل مع الإدارة.';
+                        errEl.classList.remove('hidden');
+                    }
+                }
+            });
+
+            document.getElementById('togglePassVisBtn')?.addEventListener('click', () => {
+                const inp = document.getElementById('subscriberPasswordInput');
+                if (inp) inp.type = inp.type === 'password' ? 'text' : 'password';
+            });
+
+            document.getElementById('openAdminModalBtn')?.addEventListener('click', () => {
+                document.getElementById('adminSubscribersBox')?.classList.toggle('hidden');
+            });
+
+            document.getElementById('unlockAdminBtn')?.addEventListener('click', () => {
+                const pin = document.getElementById('adminMasterPinInput')?.value;
+                if (pin === 'admin2026' || pin === 'ifaostudio2026') {
+                    document.getElementById('adminControlsContainer')?.classList.remove('hidden');
+                    renderSubscribersAdminList();
+                    showToast('تم فتح لوحة إدارة وتوليد أكواد المشتركين');
+                } else {
+                    showToast('كود المدير غير صحيح');
+                }
+            });
+
+            document.getElementById('generateSmartKeyBtn')?.addEventListener('click', () => {
+                const nameInp = document.getElementById('newSubNameInput');
+                const daysSel = document.getElementById('newSubDaysSelect');
+                const passInp = document.getElementById('newSubPassInput');
+                const name = (nameInp?.value || '').trim() || 'مشترك';
+                const days = parseInt(daysSel?.value || '30', 10);
+                const smartKey = generateSmartSubscriberKey(name, days);
+                if (passInp) passInp.value = smartKey;
+                copyTextSafe(smartKey);
+                showToast(`تم توليد ونسخ كود الاشتراك لـ "${name}" (${days} يوم)!`);
+            });
+
+            document.getElementById('addSubscriberBtn')?.addEventListener('click', () => {
+                const nameInp = document.getElementById('newSubNameInput');
+                const passInp = document.getElementById('newSubPassInput');
+                const name = (nameInp?.value || '').trim();
+                const pass = (passInp?.value || '').trim();
+                if (!name || !pass) {
+                    showToast('أدخل اسم المشترك واضغط "توليد الكود" أو اكتب كلمة السر أولاً');
+                    return;
+                }
+                const list = getSubscribersList();
+                list.push({ name, pass, uses: 0 });
+                saveSubscribersList(list);
+                copyTextSafe(pass);
+                if (nameInp) nameInp.value = '';
+                if (passInp) passInp.value = '';
+                renderSubscribersAdminList();
+                showToast(`تم حفظ ونسخ كلمة السر للمشترك: ${name}`);
+            });
+
+            document.getElementById('logoutSubscriberBtn')?.addEventListener('click', () => {
+                pausePlayback();
+                try { sessionStorage.removeItem(SESSION_AUTH_KEY); } catch (e) {}
+                document.getElementById('authLockScreen')?.classList.remove('hidden');
+            });
+
+            // أحداث المشاريع وإفراغ المشروع
+            document.getElementById('newProjectTabBtn')?.addEventListener('click', createNewProjectTab);
+            document.getElementById('clearCurrentProjectBtn')?.addEventListener('click', clearCurrentProjectContent);
+
+            // تثبيت الخط
+            document.getElementById('customFontFileInput')?.addEventListener('change', async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const buf = await file.arrayBuffer();
+                const fontFace = new FontFace('NizarBBCKurdish', buf.slice(0));
+                await fontFace.load();
+                document.fonts.add(fontFace);
+                await saveAssetToDB('customFontArrayBuffer', buf);
+                textWrapCache.clear();
+                scheduleSingleFrameRender();
+                showToast('تم تثبيت وحفظ خط التقرير بنجاح!');
+            });
+
+            // أحداث القالب (مع قالب / بدون قالب / رفع / حذف)
+            document.getElementById('btnModeWithTemplate')?.addEventListener('click', () => setTemplateMode(true));
+            document.getElementById('btnModeWithoutTemplate')?.addEventListener('click', () => setTemplateMode(false));
+
+            document.getElementById('templateUploadInput')?.addEventListener('change', (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const dataUrl = reader.result;
+                    const img = new Image();
+                    img.onload = async () => {
+                        uploadedTemplateImg = img;
+                        processedTemplateCanvas = buildTransparentTemplateCanvas(img);
+                        useTemplateOverlay = true;
+                        updateTemplateButtonsUI();
+                        scheduleSingleFrameRender();
+                        await saveAssetToDB('customTemplateDataUrl', dataUrl);
+                        showToast('تم رفع وتفعيل القالب الخاص بك وحفظه بنجاح!');
+                    };
+                    img.src = dataUrl;
+                };
+                reader.readAsDataURL(file);
+            });
+
+            document.getElementById('deleteUploadedTemplateBtn')?.addEventListener('click', async () => {
+                uploadedTemplateImg = null;
+                processedTemplateCanvas = null;
+                useTemplateOverlay = false;
+                await deleteAssetFromDB('customTemplateDataUrl');
+                updateTemplateButtonsUI();
+                scheduleSingleFrameRender();
+                showToast('تم حذف القالب المرفوع وتفعيل وضع بدون قالب.');
+            });
+
+            document.getElementById('templateBlendModeSelect')?.addEventListener('change', function () {
+                templateBlendMode = this.value;
+                scheduleSingleFrameRender();
+            });
+
+            document.getElementById('mediaViewportRatioSlider')?.addEventListener('input', function () {
+                mediaViewportRatio = (parseFloat(this.value) || 62) / 100;
+                const lbl = document.getElementById('mediaViewportRatioVal');
+                if (lbl) lbl.textContent = `${this.value}%`;
+                scheduleSingleFrameRender();
+            });
+
+            document.getElementById('mediaFeatherSlider')?.addEventListener('input', function () {
+                mediaFeatherPx = parseFloat(this.value) || 0;
+                scheduleSingleFrameRender();
+            });
+
+            // رفع صور وفيديوهات بالجملة + توليد الشرائح من النص
+            document.getElementById('bulkMediaUploadInput')?.addEventListener('change', async (e) => {
+                const files = Array.from(e.target.files || []);
+                if (files.length === 0) return;
+                for (let i = 0; i < files.length; i++) {
+                    if (i >= slides.length) {
+                        slides.push(createDefaultSlide(''));
+                    }
+                    await attachMediaFileToSlide(i, files[i]);
+                }
+                showToast(`تمت إضافة ${files.length} ملف (صورة/فيديو) إلى الشرائح!`);
+            });
+
+            document.getElementById('highlightBulkSelectionBtn')?.addEventListener('click', () => {
+                const bulkArea = document.getElementById('bulkReportTextarea');
+                highlightSelectedTextInTextarea(bulkArea);
+            });
+
+            document.getElementById('generateSlidesFromTextBtn')?.addEventListener('click', () => {
+                const raw = (document.getElementById('bulkReportTextarea')?.value || '').trim();
+                if (!raw) {
+                    showToast('الصق نص التقرير أولاً لتوزيعه على الشرائح.');
+                    return;
+                }
+                const paragraphs = raw.split(/\n+/).map(p => p.trim()).filter(Boolean);
+                paragraphs.forEach((pText, idx) => {
+                    if (idx < slides.length) {
+                        slides[idx].text = pText;
+                    } else {
+                        slides.push(createDefaultSlide(pText));
+                    }
+                });
+                activeSlideIndex = 0;
+                renderSlidesCardsList();
+                syncActiveSlideMainTextEditor();
+                renderInteractiveWordChips();
+                scheduleSingleFrameRender();
+                showToast(`تم تركيب وتوزيع النص على ${paragraphs.length} شريحة فوراً!`);
+            });
+
+            // محرر نص التقرير للشريحة الحالية + التمييز الفوري المباشر
+            document.getElementById('activeSlideMainTextInput')?.addEventListener('input', function () {
+                const slide = slides[activeSlideIndex];
+                if (!slide) return;
+                slide.text = this.value;
+                const cardPrev = document.getElementById(`slideCardTextPreview_${activeSlideIndex}`);
+                if (cardPrev) cardPrev.textContent = slide.text;
+                renderInteractiveWordChips();
+                scheduleSingleFrameRender();
+            });
+
+            document.getElementById('highlightActiveMainTextSelBtn')?.addEventListener('click', () => {
+                const area = document.getElementById('activeSlideMainTextInput');
+                highlightSelectedTextInTextarea(area, (newVal) => {
+                    const slide = slides[activeSlideIndex];
+                    if (slide) slide.text = newVal;
+                    renderInteractiveWordChips();
+                    scheduleSingleFrameRender();
+                });
+            });
+
+            document.getElementById('clearActiveMainHighlightsBtn')?.addEventListener('click', () => {
+                const slide = slides[activeSlideIndex];
+                if (!slide) return;
+                slide.text = (slide.text || '').replace(/\*/g, '');
+                syncActiveSlideMainTextEditor();
+                renderInteractiveWordChips();
+                scheduleSingleFrameRender();
+            });
+
+            document.getElementById('mainTextFontSizeSlider')?.addEventListener('input', function () {
+                mainTextFontSize = parseInt(this.value, 10) || 44;
+                const lbl = document.getElementById('mainTextFontSizeVal');
+                if (lbl) lbl.textContent = `${mainTextFontSize}px`;
+                scheduleSingleFrameRender();
+            });
+
+            document.getElementById('mainTextPosYSlider')?.addEventListener('input', function () {
+                mainTextPosY = parseInt(this.value, 10) || 980;
+                scheduleSingleFrameRender();
+            });
+
+            // أحداث كابشن المتحدث بالمنتصف بخلفية شفافة
+            document.getElementById('btnCaptionEnable')?.addEventListener('click', () => {
+                const slide = slides[activeSlideIndex];
+                if (!slide) return;
+                slide.captionEnabled = true;
+                syncCaptionPanelFromActiveSlide();
+                renderSlidesCardsList();
+                scheduleSingleFrameRender();
+            });
+
+            document.getElementById('btnCaptionDisable')?.addEventListener('click', () => {
+                const slide = slides[activeSlideIndex];
+                if (!slide) return;
+                slide.captionEnabled = false;
+                syncCaptionPanelFromActiveSlide();
+                renderSlidesCardsList();
+                scheduleSingleFrameRender();
+            });
+
+            document.getElementById('autoExtractVideoCaptionBtn')?.addEventListener('click', () => {
+                const slide = slides[activeSlideIndex];
+                if (!slide) return;
+                slide.captionEnabled = true;
+                autoAnalyzeAndExtractVideoCaption(slide, null);
+            });
+
+            document.getElementById('liveMicSpeechRecognitionBtn')?.addEventListener('click', toggleLiveSpeechRecognitionForActiveSlide);
+
+            document.getElementById('captionMainTextInput')?.addEventListener('input', function () {
+                const slide = slides[activeSlideIndex];
+                if (!slide) return;
+                slide.captionMain = this.value;
+                slide.captionEnabled = true;
+                if (Array.isArray(slide.captionSegments) && slide.captionSegments.length > 0) {
+                    const { localTime } = getSlideAtTime(currentTime);
+                    const vidSec = (slide.trimStart || 0) + localTime;
+                    const activeSeg = slide.captionSegments.find(sg => vidSec >= sg.start && vidSec <= sg.end) || slide.captionSegments[0];
+                    if (activeSeg) activeSeg.text = this.value;
+                }
+                renderCaptionWordChips();
+                renderCaptionSegmentsTimeline();
+                renderSlidesCardsList();
+                scheduleSingleFrameRender();
+            });
+
+            document.getElementById('captionSpeakerSubInput')?.addEventListener('input', function () {
+                const slide = slides[activeSlideIndex];
+                if (!slide) return;
+                slide.captionSub = this.value;
+                if (this.value.trim()) slide.captionEnabled = true;
+                scheduleSingleFrameRender();
+            });
+
+            document.getElementById('captionBgOpacitySlider')?.addEventListener('input', function () {
+                captionBgOpacity = (parseInt(this.value, 10) || 58) / 100;
+                const lbl = document.getElementById('captionBgOpacityVal');
+                if (lbl) lbl.textContent = `${this.value}%`;
+                scheduleSingleFrameRender();
+            });
+
+            document.getElementById('captionPosYSlider')?.addEventListener('input', function () {
+                updateCaptionPositionUI(parseInt(this.value, 10) || 700, captionPosX);
+            });
+
+            document.getElementById('captionPosXSlider')?.addEventListener('input', function () {
+                updateCaptionPositionUI(captionPosY, parseInt(this.value, 10) || 0);
+            });
+
+            document.getElementById('resetCaptionPosXBtn')?.addEventListener('click', () => {
+                updateCaptionPositionUI(captionPosY, 0);
+            });
+
+            document.getElementById('posCaptionTopBtn')?.addEventListener('click', () => {
+                updateCaptionPositionUI(210, 0);
+                showToast('تم وضع الكابشن في الأعلى');
+            });
+
+            document.getElementById('centerCaptionBtn')?.addEventListener('click', () => {
+                updateCaptionPositionUI(700, 0);
+                showToast('تم وضع الكابشن في المنتصف');
+            });
+
+            document.getElementById('posCaptionBottomBtn')?.addEventListener('click', () => {
+                updateCaptionPositionUI(1150, 0);
+                showToast('تم وضع الكابشن في الأسفل');
+            });
+
+            document.getElementById('nudgeCaptionUpBtn')?.addEventListener('click', () => {
+                updateCaptionPositionUI(captionPosY - 35, captionPosX);
+            });
+
+            document.getElementById('nudgeCaptionDownBtn')?.addEventListener('click', () => {
+                updateCaptionPositionUI(captionPosY + 35, captionPosX);
+            });
+
+            document.getElementById('addCaptionTimeSegmentBtn')?.addEventListener('click', () => {
+                const slide = slides[activeSlideIndex];
+                if (!slide || slide.mediaType !== 'video') return;
+                if (!Array.isArray(slide.captionSegments)) slide.captionSegments = [];
+                const lastEnd = slide.captionSegments.length > 0
+                    ? slide.captionSegments[slide.captionSegments.length - 1].end
+                    : (slide.trimStart || 0);
+                const newStart = Number(lastEnd.toFixed(1));
+                const newEnd = Number(Math.min(slide.trimEnd || 10, newStart + 2.5).toFixed(1));
+                slide.captionSegments.push({
+                    start: newStart,
+                    end: Math.max(newStart + 0.5, newEnd),
+                    text: ''
+                });
+                renderCaptionSegmentsTimeline();
+                scheduleSingleFrameRender();
+            });
+
+            // إضافة شريحة جديدة
+            document.getElementById('addNewEmptySlideBtn')?.addEventListener('click', () => {
+                slides.push(createDefaultSlide(''));
+                activeSlideIndex = slides.length - 1;
+                renderSlidesCardsList();
+                syncActiveSlideMainTextEditor();
+                renderInteractiveWordChips();
+                syncCaptionPanelFromActiveSlide();
+                syncActiveVideoTrimPanel();
+                updateTimecodeAndScrubberUI();
+                scheduleSingleFrameRender();
+            });
+
+            // أحداث قص الفيديو (Video Trimmer)
+            document.getElementById('videoTrimStartSlider')?.addEventListener('input', function () {
+                const s = parseFloat(this.value) || 0;
+                const e = parseFloat(document.getElementById('videoTrimEndSlider')?.value) || 5;
+                applyVideoTrimChange(s, e);
+            });
+
+            document.getElementById('videoTrimEndSlider')?.addEventListener('input', function () {
+                const s = parseFloat(document.getElementById('videoTrimStartSlider')?.value) || 0;
+                const e = parseFloat(this.value) || 5;
+                applyVideoTrimChange(s, e);
+            });
+
+            document.getElementById('videoTrimStartNum')?.addEventListener('change', function () {
+                const s = parseFloat(this.value) || 0;
+                const e = parseFloat(document.getElementById('videoTrimEndNum')?.value) || 5;
+                applyVideoTrimChange(s, e);
+            });
+
+            document.getElementById('videoTrimEndNum')?.addEventListener('change', function () {
+                const s = parseFloat(document.getElementById('videoTrimStartNum')?.value) || 0;
+                const e = parseFloat(this.value) || 5;
+                applyVideoTrimChange(s, e);
+            });
+
+            document.getElementById('setTrimStartNowBtn')?.addEventListener('click', () => {
+                const slide = slides[activeSlideIndex];
+                if (!slide || slide.mediaType !== 'video' || !slide.mediaElem) return;
+                applyVideoTrimChange(slide.mediaElem.currentTime || 0, slide.trimEnd);
+            });
+
+            document.getElementById('setTrimEndNowBtn')?.addEventListener('click', () => {
+                const slide = slides[activeSlideIndex];
+                if (!slide || slide.mediaType !== 'video' || !slide.mediaElem) return;
+                applyVideoTrimChange(slide.trimStart, Math.max((slide.trimStart || 0) + 0.5, slide.mediaElem.currentTime || 5));
+            });
+
+            document.getElementById('previewTrimmedVideoBtn')?.addEventListener('click', () => {
+                seekTimelineToSlideStart(activeSlideIndex);
+                startPlayback();
+            });
+
+            document.getElementById('resetVideoTrimBtn')?.addEventListener('click', () => {
+                const slide = slides[activeSlideIndex];
+                if (!slide || slide.mediaType !== 'video') return;
+                applyVideoTrimChange(0, slide.naturalVideoDuration || 5);
+                showToast('تمت استعادة كامل مدة الفيديو الأصلي.');
+            });
+
+            // أحداث لوحة هندسة الصوت المتقدمة
+            document.getElementById('lowerMusicBg15Btn')?.addEventListener('click', () => {
+                isMainMusicEnabled = true;
+                musicMasterVolume = 0.15;
+                const sl = document.getElementById('musicMasterVolumeSlider');
+                if (sl) sl.value = 15;
+                updateMainMusicStatusUI();
+                applyRealtimeAudioFade(currentTime);
+                showToast('تم تخفيض صوت الموسيقى الرئيسية إلى 15% كخلفية هادئة.');
+            });
+
+            document.getElementById('toggleRemoveMainMusicBtn')?.addEventListener('click', () => {
+                isMainMusicEnabled = !isMainMusicEnabled;
+                if (!isMainMusicEnabled) {
+                    stopBackgroundMusicPlayback();
+                    showToast('تم إيقاف/حذف الموسيقى الرئيسية (سيعمل صوت الفيديو الأصلي فقط).');
+                } else {
+                    if (musicMasterVolume <= 0) musicMasterVolume = 0.35;
+                    if (isPlaying) startBackgroundMusicPlayback(currentTime);
+                    showToast('تمت إعادة تفعيل الموسيقى الرئيسية.');
+                }
+                updateMainMusicStatusUI();
+            });
+
+            document.getElementById('musicMasterVolumeSlider')?.addEventListener('input', function () {
+                musicMasterVolume = (parseInt(this.value, 10) || 0) / 100;
+                isMainMusicEnabled = musicMasterVolume > 0;
+                updateMainMusicStatusUI();
+                applyRealtimeAudioFade(currentTime);
+            });
+
+            document.querySelectorAll('.quick-vol-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const v = parseInt(btn.getAttribute('data-vol'), 10) || 0;
+                    musicMasterVolume = v / 100;
+                    isMainMusicEnabled = v > 0;
+                    const sl = document.getElementById('musicMasterVolumeSlider');
+                    if (sl) sl.value = v;
+                    updateMainMusicStatusUI();
+                    applyRealtimeAudioFade(currentTime);
+                });
+            });
+
+            document.getElementById('videoSpeechGainSlider')?.addEventListener('input', function () {
+                videoSpeechGain = (parseInt(this.value, 10) || 100) / 100;
+                const lbl = document.getElementById('videoSpeechGainLabel');
+                if (lbl) lbl.textContent = `${this.value}%`;
+                applyRealtimeAudioFade(currentTime);
+            });
+
+            document.getElementById('autoDuckingToggle')?.addEventListener('change', function () {
+                autoDuckingEnabled = this.checked;
+                drawAudioEnvelopeVisualizer(currentTime);
+                applyRealtimeAudioFade(currentTime);
+            });
+
+            document.getElementById('customAudioFileInput')?.addEventListener('change', async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                    const actx = ensureAudioContext();
+                    const buf = await file.arrayBuffer();
+                    customAudioBuffer = await actx.decodeAudioData(buf.slice(0));
+                    isMainMusicEnabled = true;
+                    await saveAssetToDB('customAudioArrayBuffer', buf);
+                    updateMainMusicStatusUI();
+                    showToast('تم رفع وحفظ ملف الموسيقى الجديد بنجاح!');
+                } catch (err) {
+                    showToast('تعذر قراءة الملف الصوتي، يرجى اختيار ملف MP3 أو WAV صالح.');
+                }
+            });
+
+            document.getElementById('testAudioSoundBtn')?.addEventListener('click', async () => {
+                window.__testingAudio = true;
+                isMainMusicEnabled = true;
+                if (musicMasterVolume <= 0) musicMasterVolume = 0.35;
+                updateMainMusicStatusUI();
+                await startBackgroundMusicPlayback(0);
+                showToast('جاري تجربة الموسيقى والتدرج الصوتي لمدة 4 ثوانٍ...');
+                setTimeout(() => {
+                    window.__testingAudio = false;
+                    if (!isPlaying) stopBackgroundMusicPlayback();
+                }, 4000);
+            });
+
+            document.getElementById('audioFadeInSlider')?.addEventListener('input', updateAudioEnvelopeSettings);
+            document.getElementById('audioFadeOutSlider')?.addEventListener('input', updateAudioEnvelopeSettings);
+            document.getElementById('musicStartOffsetSlider')?.addEventListener('input', updateAudioEnvelopeSettings);
+
+            // أزرار التشغيل والمعاينة والتصدير
+            document.getElementById('playPauseBtn')?.addEventListener('click', () => {
+                if (isPlaying) pausePlayback();
+                else startPlayback();
+            });
+
+            document.getElementById('restartPlaybackBtn')?.addEventListener('click', () => {
+                pausePlayback();
+                currentTime = 0;
+                activeSlideIndex = 0;
+                highlightActiveSlideCard();
+                syncActiveSlideMainTextEditor();
+                renderInteractiveWordChips();
+                syncCaptionPanelFromActiveSlide();
+                syncActiveVideoTrimPanel();
+                syncVideoElementsToTime(true);
+                scheduleSingleFrameRender();
+            });
+
+            document.getElementById('timelineScrubber')?.addEventListener('input', function () {
+                currentTime = parseFloat(this.value) || 0;
+                const { index } = getSlideAtTime(currentTime);
+                if (index !== activeSlideIndex) {
+                    activeSlideIndex = index;
+                    highlightActiveSlideCard();
+                    syncActiveSlideMainTextEditor();
+                    renderInteractiveWordChips();
+                    syncCaptionPanelFromActiveSlide();
+                    syncActiveVideoTrimPanel();
+                }
+                syncVideoElementsToTime(true);
+                applyRealtimeAudioFade(currentTime);
+                drawAudioEnvelopeVisualizer(currentTime);
+                renderMontageFrame(currentTime);
+            });
+
+            document.getElementById('slideImageScale')?.addEventListener('input', function () {
+                const slide = slides[activeSlideIndex];
+                if (!slide) return;
+                slide.scale = parseFloat(this.value) || 1;
+                scheduleSingleFrameRender();
+            });
+
+            document.getElementById('resetSlideTransformBtn')?.addEventListener('click', () => {
+                const slide = slides[activeSlideIndex];
+                if (!slide) return;
+                slide.scale = 1;
+                slide.panX = 0;
+                slide.panY = 0;
+                const sc = document.getElementById('slideImageScale');
+                if (sc) sc.value = 1;
+                scheduleSingleFrameRender();
+            });
+
+            document.getElementById('exportVideoBtn')?.addEventListener('click', exportFinalVideoReport);
+        });
+    </script>
+</body>
+</html>
